@@ -25,13 +25,13 @@ See rubric in this repo.
 ### Segmentation techniques
 - [X] 05/05/2026: Segmentation: Thresholding + Region-based (region growing, etc) ------> Saif Alomari, Zeiler Randall-Reed, Ari Jacobs, Trent Llewellyn
 - [x] 05/07/2026: Segmentation: Clustering (mean-shift) + Graph-based methods (graph-cut, random walk, etc)(Mengyao Li, Zichen Zhou, Yuchen Chen, Zejun Huang)
-- [X] 05/12/2026: Segmentation: Energy-minimization (Conditional Random Fields). Jared A, Rohan Koshy.
+- [X] 05/12/2026: Segmentation: Energy-minimization (Conditional Random Fields). Rohan Koshy.
 
 ### Image Alignment and Stitching
 - [x] 05/14/2026: Image Alignment and Stitching. Anisha B, Wenhui Xi, Pushpita J
 
 ### Reconstruction
 - [x] 05/19/2026: Reconstruction via triangulation (line of sight, linear + nonlinear methods) (Tianyi C, Chun-yu C, Yutong W, Zerui W)
-- [x] 05/21/2026: Reconstruction: Structure from Motion (affine only), Tomasi and Kanade Factorization Method. Yanxiu Jin, Michael S
+- [x] 05/21/2026: Reconstruction: Structure from Motion (affine only), Tomasi and Kanade Factorization Method. Yanxiu Jin, Michael S, Jared A.
 - [ ] 05/26/2026: Reconstruction: Active and Volumetric Stereo
  

@@ -20,7 +20,7 @@ See rubric in this repo.
 
 ### Edges and Contours
 - [x] 04/28/2026: Edge detection: Sobel detector, Canny detector, Marr / Hildreth detector, Hough transform. Daniel S, Dylan J, Justin X, Logan U
-- [x] 04/30/2026: Contour tracing: active contours (snakes, intelligent scissors, level set techniques). Sreeganesh S, Jason R, Neel T, Justin Z
+- [x] 04/30/2026: Contour tracing: active contours (snakes, intelligent scissors, level set techniques). Sreeganesh S, Jason R, Neel T, Justin Z, Jasper O
 
 ### Segmentation techniques
 - [X] 05/05/2026: Segmentation: Thresholding + Region-based (region growing, etc) ------> Saif Alomari, Zeiler Randall-Reed, Ari Jacobs, Trent Llewellyn

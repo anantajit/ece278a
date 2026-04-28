@@ -1,0 +1,7 @@
+Daniel Searl: Found/explained research papers with Dylan and visuals for Sobel detector and Canny detector
+
+Justin Xiao: Visuals/animations for Marr-Hildreth and Hough
+
+Dylan Jones: Found/explained research papers with Daniel and reviewed slides
+
+Logan Unger: Content for the four sub-topics (Sobel, Canny, Marr-Hildreth, Hough), dividing other labor among teammates, organizing group repo

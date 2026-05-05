@@ -33,5 +33,5 @@ See rubric in this repo.
 ### Reconstruction
 - [x] 05/19/2026: Reconstruction via triangulation (line of sight, linear + nonlinear methods) (Tianyi C, Chun-yu C, Yutong W, Zerui W)
 - [x] 05/21/2026: Reconstruction: Structure from Motion (affine only), Tomasi and Kanade Factorization Method. Yanxiu Jin, Michael S, Jared A.
-- [ ] 05/26/2026: Reconstruction: Active and Volumetric Stereo
+- [X] 05/26/2026: Reconstruction: Active and Volumetric Stereo. Dingjiang Liang
  

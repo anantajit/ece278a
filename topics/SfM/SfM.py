@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.6"
-app = marimo.App(width="medium")
+app = marimo.App(width="medium", layout_file="layouts/SfM.slides.json")
 
 
 @app.cell
@@ -104,13 +104,11 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(frame_paths):
-    import matplotlib.pyplot as plt
     import numpy as np
     from PIL import Image as _Image
     import cv2
-    from matplotlib.lines import Line2D
 
     # extract test images
     selected = [frame_paths[i] for i in (7, 8, 9)]
@@ -123,19 +121,31 @@ def _(frame_paths):
     pts = [np.array([kp.pt for kp in ks], dtype=np.float32) for ks in kps]
 
     tracked = [pts[0].reshape(-1, 1, 2)]
-    for i in range(1, len(grays)):
+    for _i in range(1, len(grays)):
+        # get tracked SIFT keypoints from the last frame
         p_prev = tracked[-1]
+        # find optical flow to next frame and use it to track our prev keypoints
         p_next, s, _ = cv2.calcOpticalFlowPyrLK(
-            grays[i - 1], grays[i], p_prev, None
+            grays[_i - 1], grays[_i], p_prev, None
         )
+        # find optical flow from next frame and use it to track our curr keypoints
         p_back, sb, _ = cv2.calcOpticalFlowPyrLK(
-            grays[i], grays[i - 1], p_next, None
+            grays[_i], grays[_i - 1], p_next, None
         )
+        # only keep the keypoints which are within 1 pixel of the tracks in both directions
         fb = np.linalg.norm((p_back - p_prev).reshape(-1, 2), axis=1)
         ok = s.reshape(-1).astype(bool) & sb.reshape(-1).astype(bool) & (fb < 1.0)
+        # update our tracked points across all images
         tracked = [p[ok] for p in tracked]
         tracked.append(p_next[ok])
     tracked = [p.reshape(-1, 2) for p in tracked]
+    return kps, pts, rgbs, selected, tracked
+
+
+@app.cell(hide_code=True)
+def _(kps, pts, rgbs, selected, tracked):
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
     fig, ax = plt.subplots(1, len(selected), figsize=(5 * len(selected), 5))
     legend = [
@@ -158,14 +168,14 @@ def _(frame_paths):
             label="Tracked points",
         ),
     ]
-    for i, p in enumerate(selected):
-        ax[i].imshow(rgbs[i])
-        if len(pts[i]):
-            ax[i].scatter(pts[i][:, 0], pts[i][:, 1], s=5, c="red")
-        if len(tracked[i]):
-            ax[i].scatter(tracked[i][:, 0], tracked[i][:, 1], s=7, c="blue")
-        ax[i].set_title(f"{p.name} ({len(kps[i])}, {len(tracked[0])} tracked)")
-        ax[i].axis("off")
+    for _i, p in enumerate(selected):
+        ax[_i].imshow(rgbs[_i])
+        if len(pts[_i]):
+            ax[_i].scatter(pts[_i][:, 0], pts[_i][:, 1], s=5, c="red")
+        if len(tracked[_i]):
+            ax[_i].scatter(tracked[_i][:, 0], tracked[_i][:, 1], s=7, c="blue")
+        ax[_i].set_title(f"{p.name} ({len(kps[_i])}, {len(tracked[0])} tracked)")
+        ax[_i].axis("off")
     ax[-1].legend(handles=legend, loc="lower right", framealpha=0.9)
     fig.tight_layout()
     fig
@@ -216,6 +226,16 @@ def _(mo):
     - Factorization is ambiguous up to any invertible 3x3 transform.
     - Solve for a transform that enforces orthonormality constraints on motion rows.
     - Apply it to obtain Euclidean-consistent motion and structure.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Engineering Details
+
+    - We can merge multiple partial reconstructions to create a complete pointcloud
     """)
     return
 

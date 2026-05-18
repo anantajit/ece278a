@@ -93,6 +93,14 @@ def _(frame_paths, mo, n_frames, next_frame):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    # TODO: what is optical flow?
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Feature tracking
 
     - Detect salient points and follow the same points across frames.
@@ -243,11 +251,35 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Papers (options)
+    ## COLMAP
 
-    - Compare modern methods against classical affine SfM assumptions.
-    - Focus on what replaces tracking/factorization in learned pipelines.
-    - Track tradeoffs: robustness, scale, priors, and compute.
+    **Industry Standard**
+
+    - Works for perspective projection (not just affine)
+
+    - Images come in any order
+
+        - Not necessary one image
+
+    - Images don't necessarily overlap
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    @everyone make one cell per concept, i think
+
+    1. Feature Extraction (kinda the same)
+
+    2. Feature Matching (SuperGlue, ???)
+
+    3. Geometric Verification
+
+    4. Triangulation
+
+    5. Bundle Adjustment (and details)
     """)
     return
 
@@ -255,11 +287,17 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## VGGT / MapAnything / VGG-SfM / MASt3R
+    ## VGGT [Anantajit]
 
-    - Pick one as the primary baseline and one as a contrastive alternative.
-    - Extract each method's input assumptions and output representations.
-    - Align evaluation criteria to the same datasets and failure cases.
+    **Outline**
+
+    1. What are the limitations for COLMAP (slow)
+
+    2. Overview of VGGT
+
+    3. Live Demo
+
+    4. Weaknesses
     """)
     return
 

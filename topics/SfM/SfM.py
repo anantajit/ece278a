@@ -302,5 +302,27 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # VGGT: Visual Geometry Grounded Transformer
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Why **not** COLMAP (always, everywhere, all the time)?
+
+    - Optimization of Visual Geometry is a computationally intensive task
+
+      - Recent papers (DUSt3R, MASt3R, VGGSfM) has demonstrated learning-based approaches but do not automate the full pipeline
+
+    - Limited generalization (different methods are )
+    """)
+    return
+
+
 if __name__ == "__main__":
     app.run()

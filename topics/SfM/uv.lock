@@ -1013,6 +1013,19 @@ wheels = [
 ]
 
 [[package]]
+name = "plotly"
+version = "6.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "narwhals" },
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3a/7f/0f100df1172aadf88a929a9dbb902656b0880ba4b960fe5224867159d8f4/plotly-6.7.0.tar.gz", hash = "sha256:45eea0ff27e2a23ccd62776f77eb43aa1ca03df4192b76036e380bb479b892c6", size = 6911286, upload-time = "2026-04-09T20:36:45.738Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/ad/cba91b3bcf04073e4d1655a5c1710ef3f457f56f7d1b79dcc3d72f4dd912/plotly-6.7.0-py3-none-any.whl", hash = "sha256:ac8aca1c25c663a59b5b9140a549264a5badde2e057d79b8c772ae2920e32ff0", size = 9898444, upload-time = "2026-04-09T20:36:39.812Z" },
+]
+
+[[package]]
 name = "psutil"
 version = "7.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1038,6 +1051,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/04/78/0acd37ca84ce3ddffaa92ef0f571e073faa6d8ff1f0559ab1272188ea2be/psutil-7.2.2-cp36-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:b58fabe35e80b264a4e3bb23e6b96f9e45a3df7fb7eed419ac0e5947c61e47cc", size = 148266, upload-time = "2026-01-28T18:15:31.597Z" },
     { url = "https://files.pythonhosted.org/packages/b4/90/e2159492b5426be0c1fef7acba807a03511f97c5f86b3caeda6ad92351a7/psutil-7.2.2-cp37-abi3-win_amd64.whl", hash = "sha256:eb7e81434c8d223ec4a219b5fc1c47d0417b12be7ea866e24fb5ad6e84b3d988", size = 137737, upload-time = "2026-01-28T18:15:33.849Z" },
     { url = "https://files.pythonhosted.org/packages/8c/c7/7bb2e321574b10df20cbde462a94e2b71d05f9bbda251ef27d104668306a/psutil-7.2.2-cp37-abi3-win_arm64.whl", hash = "sha256:8c233660f575a5a89e6d4cb65d9f938126312bca76d8fe087b947b3a1aaac9ee", size = 134617, upload-time = "2026-01-28T18:15:36.514Z" },
+]
+
+[[package]]
+name = "pycolmap"
+version = "4.0.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5f/43/f142a64d8e9a8bd9c640c5ce06891209df49baa8d442d1d8672bc457eaf1/pycolmap-4.0.4-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:d20daf8dc004ce2b9b7b02eb1a6e920cb940eb9a5356842afa0dc471a06cb180", size = 19896178, upload-time = "2026-04-27T14:44:50.429Z" },
+    { url = "https://files.pythonhosted.org/packages/34/90/2fcd24a24d36ef62e712b56a9cc6d78fda0fb87d2017068a2e01b9f8938d/pycolmap-4.0.4-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:964a704a0adc1df5d7337bd15a65544a67b8a31942ad7d4cfa137dfdf3dfa119", size = 27117963, upload-time = "2026-04-27T14:44:52.757Z" },
+    { url = "https://files.pythonhosted.org/packages/35/5a/727dd1971bf14246e1b199a529e2d5f0a0fc59f64136ff23ba5833cc0154/pycolmap-4.0.4-cp313-cp313-win_amd64.whl", hash = "sha256:9af65a0dde7487f15e0851cefe5c084e41904e2fc7c809d80cca0ef13ff2e366", size = 23381748, upload-time = "2026-04-27T14:44:55.841Z" },
+    { url = "https://files.pythonhosted.org/packages/77/f8/787f4bd2811d39ae99f827136a2de16038d2a70d7656e7af542efc391bf8/pycolmap-4.0.4-cp314-cp314-macosx_14_0_arm64.whl", hash = "sha256:beb56782b75c77bdb0d9d4e8a7d8fdf38b37d169df30a72a11f2da1a5b3fe5e1", size = 19907542, upload-time = "2026-04-27T14:44:58.32Z" },
+    { url = "https://files.pythonhosted.org/packages/44/f8/6cfbad9847b2d3503cb9f2d189b0557c72d83abb0f7aa30f5a6bcdd273f2/pycolmap-4.0.4-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:4a267b4181869f4fd3cb8ec8ab8f9b5788b5de27822975d8818625fc6b20282f", size = 27121738, upload-time = "2026-04-27T14:45:00.832Z" },
+    { url = "https://files.pythonhosted.org/packages/16/a1/63b5b1e2af1067011b4554f141788697f8da62ca07bcc13fbffad7c4f8e3/pycolmap-4.0.4-cp314-cp314-win_amd64.whl", hash = "sha256:e117a5e30ad020d151dd501c934933c5cdfac606480edd84365435548bbeddda", size = 24096761, upload-time = "2026-04-27T14:45:03.402Z" },
 ]
 
 [[package]]
@@ -1300,6 +1329,8 @@ dependencies = [
     { name = "numpy" },
     { name = "opencv-contrib-python" },
     { name = "playwright" },
+    { name = "plotly" },
+    { name = "pycolmap" },
 ]
 
 [package.dev-dependencies]
@@ -1320,6 +1351,8 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.4.4" },
     { name = "opencv-contrib-python", specifier = ">=4.13.0.92" },
     { name = "playwright", specifier = ">=1.59.0" },
+    { name = "plotly", specifier = ">=6.7.0" },
+    { name = "pycolmap", specifier = ">=4.0.4" },
 ]
 
 [package.metadata.requires-dev]

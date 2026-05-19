@@ -193,12 +193,109 @@ def _(kps, pts, rgbs, selected, tracked):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Measurement matrix construction
+    ## Affine SfM
+    We've tracked P feature points across F images $(x_{fp}, y_{fp})$ for frame f and point p. We want spatial information $X_p$,$Y_p$,$Z_p$
 
+    Under an affine camera model (weak perspective) then we get something like $x = AX + t$
+
+
+    $$ x_{fp} = m_{f}^T \begin{bmatrix}
+    X_{p} \\
+    Y_{p} \\
+    Z_{p}
+    \end{bmatrix} + t_f $$
+
+    Where $m_f = \in \mathbb{R^{1 \times 3}}$ is from camera.
+
+    This approximation is good if depth variation is small compared to distance from camera (approximately linear in Z). Will see later that for more general SfM, affine approximation is not good.
+
+
+    <!--
     - Build \(W \in \mathbb{R}^{2F 	imes P}\) from tracked \((x, y)\) coordinates.
     - Each frame contributes two rows (x-row and y-row).
     - Columns represent a single 3D point trajectory across frames.
+    -->
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Measurement Matrix
+
+    For one frame we have
+    $$
+    \begin{bmatrix}
+    x_{f1} & x_{f2} & \cdots & x_{fP}  \\
+    y_{f1} & y_{f2} & \cdots & y_{fP}
+    \end{bmatrix}
+    = \begin{bmatrix}
+    a_{f}^T  \\
+    b_{f}^T
+    \end{bmatrix}
+    \begin{bmatrix}
+    X_{1} & X_{2} & \cdots & X_P \\
+    \end{bmatrix}
+    +
+    \begin{bmatrix}
+    t_{xf}  \\
+    t_{yf} \\
+    \end{bmatrix} \mathbb{I}^T
+    $$
+
+    We **center** by subtracting the frame's centroid from all tracked points. This removes per-frame translation from the affine model and is crucial later.
+
+    This allows us to write a matrix for this frame $W_f$ as
+
+    $$
+    W_f =
+    \begin{bmatrix}
+    a_{f}^T  \\
+    b_{f}^T \\
+    \end{bmatrix} S
+    $$
+
+    Where S is all the P 3D points.
+
+    We stack all frames vertically and let $M = \begin{bmatrix}
+    a_{1}^T  \\
+    b_{1}^T \\
+    a_{2}^T  \\
+    \vdots
+    \end{bmatrix} S$
+
+    Then the measurement matrix $W = MS$, $W \in \mathbb{R}^{2F\times P}, M \in \mathbb{R}^{2F \times 3}, S \in \mathbb{R}^{3 \times P}$.
+    Each image coordinate is linear function of 3D point.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Rank and Factorization
+
+    Tomasi and Kanade (1992) observed that under affine projection, the centered mesaurement matrix has at *most* rank 3. Our derivation holds then up to affine ambigutity.
+
+    From SVD, we have $W = U \Sigma V^T$. Tomasi and Kanade showed that the factorization will always connect motion and 3D shape, that is, for rank 3 approximation:
+
+    $$M = U_3 \Sigma_{3}^{1/2},  S = \Sigma_{3}^{1/2} V_{3}^T $$
+
+    $$W = MS \in \mathbb{R}^{2F \times P}$$
+
+    In the end, each column of $W$ is a 3P point tracked over time, and each pair of rows is a camera frame.
+    """)
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
     return
 
 

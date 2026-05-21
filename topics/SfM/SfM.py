@@ -12,24 +12,6 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    # Outline
-
-    - What is the Structure from Motion (SfM) problem?
-    - Affine SfM (Tomasi-Kanade)
-      - Feature tracking
-      - Measurement matrix construction
-      - Centering (remove translation)
-      - Rank-3 factorization (SVD)
-      - Metric upgrade
-    - Papers (options)
-      - VGGT / MapAnything / VGG-SfM / MASt3R
-    """)
-    return
-
-
-@app.cell(hide_code=True)
 def _():
     import numpy as np
     from PIL import Image as _Image

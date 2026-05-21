@@ -42,6 +42,11 @@ def _(mo):
     - Assume an affine/orthographic camera so projection is linear.
     - Stack tracked 2D points across frames into a measurement matrix.
     - Factor the matrix into motion and structure, then enforce metric constraints.
+    - Affine has its limitations, but we might, e.g., merge multiple partial reconstructions to create a complete pointcloud
+
+    ## COLMAP
+    - Industry Standard Practical SfM System
+    - Handles non affine case and more
     """)
     return
 
@@ -93,20 +98,112 @@ def _(Image, frame_paths, mo, n_frames, next_frame):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## Doing Affine SFM: Feature tracking
+
+    - Detect salient points and follow the same points across frames.
+        - SIFT for extracting keypoints
+        - Optical Flow (Lucas-Kanade method) for tracking
+    - Keep only trajectories visible in many frames for stability.
+    - Reject obvious outliers/drift before building the matrix.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Optical flow
 
-    Optical flow estimates how image points move between consecutive frames as a 2D velocity field \((u, v)\). Assuming brightness constancy and small motion,
-    \[
-    I(x,y,t) = I(x+u\,\Delta t,\, y+v\,\Delta t,\, t+\Delta t)
-    \quad\Rightarrow\quad
-    I_x u + I_y v + I_t = 0.
-    \]
+    Optical flow estimates how image points move between consecutive frames as a 2D velocity field \((u, v)\), assuming brightness constancy and small motion. It reveals temporal correspondence in dynamic scenes.
+    """)
+    return
 
-    Lucas-Kanade solves this underdetermined constraint by assuming nearly constant flow in a small patch and fitting \((u,v)\) over all pixels in that patch by least squares:
-    \[
-    \min_{u,v} \sum_{p\in\Omega} \left(I_x(p)u + I_y(p)v + I_t(p)\right)^2.
-    \]
-    This works because many nearby pixels provide enough equations to estimate one local motion vector robustly.
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Optical flow constraint equation
+    Let $E(x, y, t)$ be the irradiance at time $t$ at the image point $(x, y)$.
+    $u(x, y)$ and $v(x, y)$ are the $x$ and $y$ components of the optical flow vector at that point, we expect that the irradiance will be the same at time
+    $t + \delta t$ at the point $(x + \delta x, y + \delta y)$, where $\delta x = u \delta t$
+    and $\delta y = v \delta t$. That is,
+
+    $$E(x + u\,\delta t,\, y + v\,\delta t,\, t + \delta t) = E(x, y, t)$$
+
+    for a small time interval $\delta t$. This single constraint is not sufficient to
+    determine both $u$ and $v$ uniquely.
+
+    If brightness varies smoothly with $x$, $y$, and $t$, we can expand the left-hand
+    side of the equation above in a Taylor series and so obtain
+
+    $$E(x, y, t) + \delta x \frac{\partial E}{\partial x} + \delta y \frac{\partial E}{\partial y} + \delta t \frac{\partial E}{\partial t} + e = E(x, y, t),$$
+
+    where $e$ contains second- and higher-order terms in $\delta x$, $\delta y$, and $\delta t$.
+
+    $$\frac{\partial E}{\partial x}\frac{dx}{dt} + \frac{\partial E}{\partial y}\frac{dy}{dt} + \frac{\partial E}{\partial t} = 0,$$
+
+    which is actually just the expansion of the equation
+
+    $$\frac{dE}{dt} = 0$$
+
+    in the total derivative of $E$ with respect to time. Using the abbreviations
+
+    $$u = \frac{dx}{dt}, \qquad v = \frac{dy}{dt},$$
+
+    $$E_x = \frac{\partial E}{\partial x}, \quad E_y = \frac{\partial E}{\partial y}, \quad E_t = \frac{\partial E}{\partial t},$$
+
+    we obtain
+
+    $$E_x u + E_y v + E_t = 0.$$
+
+    The spatial and temporal gradient $E_x$, $E_y$, and $E_t$ are estimated from the image. The above
+    equation is called the *optical flow constraint equation*
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Aperture problem
+    Consider a two-dimensional space with axes $u$ and $v$, which we shall call
+    *velocity space*. Values of $(u, v)$ satisfying the constraint equation
+    lie on a straight line in velocity space. All that a local measurement can do is
+    to identify this constraint line.
+
+    $$(E_x, E_y) \cdot (u, v) = -E_t.$$
+
+    The component of optical flow in the direction of the brightness gradient
+    $(E_x, E_y)^T$ is thus
+
+    $$\frac{E_t}{\sqrt{E_x^2 + E_y^2}}.$$
+
+    We cannot determine the component of the optical flow at right
+    angles to this direction. This
+    ambiguity is also known as the *aperture problem*.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Lucas-Kanade method
+    Lucas-Kanade added additional constraints to recover full flow vectors by assuming nearly constant flow in a small patch.
+    i.e. Assume that u,v are constant over a small neighborhood. For N pixels in a local window,
+    $$I_x(x_i)u + I_y(x_i)v = -I_t(x_i), \quad i = 1, \ldots, N$$
+
+    This gives the linear system:
+
+    $$A \begin{bmatrix} u \\ v \end{bmatrix} = \mathbf{b}$$
+
+    with:
+
+    $$A = \begin{bmatrix} I_x(x_1) & I_y(x_1) \\ \vdots & \vdots \\ I_x(x_N) & I_y(x_N) \end{bmatrix}, \quad \mathbf{b} = -\begin{bmatrix} I_t(x_1) \\ \vdots \\ I_t(x_N) \end{bmatrix}$$
+
+    The least squares solution is:
+
+    $$\begin{bmatrix} u \\ v \end{bmatrix} = (A^T A)^{-1} A^T \mathbf{b}$$
     """)
     return
 
@@ -158,20 +255,6 @@ def _(Image, cv2, frame_paths, mo, np):
             ),
         ]
     )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Feature tracking
-
-    - Detect salient points and follow the same points across frames.
-        - SIFT for extracting keypoints
-        - Optical Flow (Lucas-Kanade method) for tracking
-    - Keep only trajectories visible in many frames for stability.
-    - Reject obvious outliers/drift before building the matrix.
-    """)
     return
 
 
@@ -286,7 +369,7 @@ def _(Line2D, kps, plt, pts, rgbs, selected, tracked):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Affine SfM
+    ## Affine approximation
     We've tracked P feature points across F images $(x_{fp}, y_{fp})$ for frame f and point p. We want spatial information $X_p$,$Y_p$,$Z_p$
 
     Under an affine camera model (weak perspective) then we get something like $x = AX + t$
@@ -315,7 +398,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Measurement Matrix
+    ## The Measurement Matrix
 
     For one frame we have
     $$
@@ -367,7 +450,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Rank and Factorization
+    ## Tomasi & Kanade Factorization
 
     Tomasi and Kanade (1992) observed that under affine projection, the centered mesaurement matrix has at *most* rank 3. Our derivation holds then up to affine ambigutity.
 
@@ -378,6 +461,18 @@ def _(mo):
     $$W = MS \in \mathbb{R}^{2F \times P}$$
 
     In the end, each column of $W$ is a 3P point tracked over time, and each pair of rows is a camera frame.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Last step: Metric upgrade
+
+    - Factorization is ambiguous up to any invertible 3x3 transform.
+    - Solve for a transform that enforces orthonormality constraints on motion rows.
+    - Apply it to obtain Euclidean-consistent motion and structure.
     """)
     return
 
@@ -674,29 +769,7 @@ def _(Image, Path, cv2, np, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Metric upgrade
-
-    - Factorization is ambiguous up to any invertible 3x3 transform.
-    - Solve for a transform that enforces orthonormality constraints on motion rows.
-    - Apply it to obtain Euclidean-consistent motion and structure.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Engineering Details
-
-    - We can merge multiple partial reconstructions to create a complete pointcloud
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## COLMAP
+    ## Beyond Affine: COLMAP
 
     **Industry Standard Practical SfM System**
 

@@ -372,6 +372,7 @@ def _():
     colmap_image_paths += sorted(_colmap_sacre_dir.glob("*.jpeg"))
     colmap_image_paths += sorted(_colmap_sacre_dir.glob("*.png"))
     colmap_image_paths += sorted(_colmap_sacre_dir.glob("*.JPG"))
+    colmap_image_paths += sorted(_colmap_sacre_dir.glob("viff.*.ppm"))
 
     # Pick two images for the visual demos. Use nearby entries if possible,
     # otherwise fall back to the first two images.
@@ -601,11 +602,11 @@ def _(
             colmap_matches = sorted(colmap_matches, key=lambda _m: _m.distance)
 
         colmap_matches = colmap_matches[:100]
-    
+
         # Assign a unique color per match ranked by descriptor distance
         _n_show = min(40, len(colmap_matches))
         _sorted_matches = sorted(colmap_matches, key=lambda m: m.distance)[:_n_show]
-    
+
         _colmap_match_vis = cv2.drawMatches(
             colmap_img1_rgb,
             colmap_kp1,
@@ -617,7 +618,7 @@ def _(
             singlePointColor=(80, 80, 80),
             flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
         )
-    
+
         # Overdraw thicker lines and endpoint dots manually for visibility
         _h, _w = colmap_img1_rgb.shape[:2]
         for _m in _sorted_matches:
@@ -1295,7 +1296,7 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                     mode="markers",
                     name="Sparse 3D points",
                     marker=dict(
-                        size=2,
+                        size=4,
                         color=_colmap_colors,
                         opacity=0.85,
                     ),

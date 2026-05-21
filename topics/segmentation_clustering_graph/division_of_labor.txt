@@ -1,0 +1,8 @@
+Team Contributions
+
+- Zejun Huang: Clustering-based Segmentation (Mean Shift)
+- Yuchen Chen: Graph-based Segmentation (Graph Cut)
+- Mengyao Li: Probabilistic Segmentation (Random Walk)
+- Zichen Zhou: Recent Paper Analysis (2024+)
+
+All teammates contribute to integrating content into the final presentation notebook and preparing the full in-class presentation.

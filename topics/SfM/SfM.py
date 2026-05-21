@@ -4,6 +4,13 @@ __generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
+@app.cell
+def _():
+    import marimo as mo
+
+    return (mo,)
+
+
 @app.cell(hide_code=True)
 def _():
     import importlib
@@ -74,7 +81,7 @@ def _(Path, mo):
         else None
     )
     next_frame
-    return frame_paths, n_frames, next_frame
+    return Path, frame_paths, n_frames, next_frame
 
 
 @app.cell(hide_code=True)
@@ -280,7 +287,7 @@ def _(Line2D, kps, plt, pts, rgbs, selected, tracked):
         _ax[_i].axis("off")
     _ax[-1].legend(handles=legend, loc="lower right", framealpha=0.9)
     _fig
-    return
+    return (plt,)
 
 
 @app.cell(hide_code=True)
@@ -379,6 +386,295 @@ def _(mo):
 
     In the end, each column of $W$ is a 3P point tracked over time, and each pair of rows is a camera frame.
     """)
+    return
+
+
+@app.cell
+def _(Image, Path, cv2, np, plt):
+    import plotly.graph_objects as plt_g
+    from scipy.linalg import sqrtm
+
+    def main():
+        frame_paths = sorted(Path("./data/dino").glob("*.ppm"))
+        selected_paths = frame_paths[:10]
+
+        rgb_frames, frames = load_images(selected_paths)
+
+        tracked, F = get_keypoints(frames)
+
+        W = construct_W(tracked, F)
+
+        plot_tracks(tracked, rgb_frames, F)
+
+        M, S = affineSFM(W,F)
+
+        # remove outliers
+        dist = np.linalg.norm(S, axis=0)
+        mask = dist < np.percentile(dist, 90)
+        S = S[:, mask]
+
+        plot_shape(S)
+
+    def construct_W(tracks, F):
+        P = len(tracks)
+        W = np.zeros((2*F, P))
+        for j, track in enumerate(tracks):
+            for i, pt in enumerate(track):
+                x, y = pt
+                W[2*i, j] = x
+                W[2*i+1, j] = y
+
+        # centering
+        for i in range(F):
+            W[2*i]   -= np.mean(W[2*i])
+            W[2*i+1] -= np.mean(W[2*i+1])
+
+        return W
+
+    def affineSFM(W,F):
+      Ud, Sd, Vd = np.linalg.svd(W)
+
+      # keep up to rank 3
+      U3 = Ud[:,0:3]
+      S3 = np.diag(Sd[:3])
+      V3 = Vd.T[:, :3]
+
+      M = U3 @ sqrtm(S3)
+      S = sqrtm(S3) @ V3.T
+
+      C = metric_upgrade(F,M)
+
+      M = M @ C
+      S = np.linalg.inv(C) @ S
+
+      return M, S
+
+    def plot_shape(S):
+        x = S[0,:]
+        y = S[1,:]
+        z = S[2,:]
+
+        fig = plt_g.Figure(data=[
+            plt_g.Scatter3d(
+                x=x,
+                y=y,
+                z=z,
+                mode='markers',
+                marker=dict(
+                    size=4,
+                    color=z,
+                    colorscale='Turbo',
+                    opacity=0.9
+                )
+            )
+        ])
+
+        fig.update_layout(
+            title='Affine SfM Reconstruction',
+            scene=dict(
+                aspectmode='data',
+                dragmode='orbit'
+            )
+        )
+
+        fig.show()
+
+        fig = plt.figure(figsize=(18.5, 6))
+        fig.suptitle('Reconstructed image')
+        ax1 = fig.add_subplot(131, projection='3d')
+        ax1.scatter(x, y, z, color='red', lw=1)
+        ax1.view_init(130, 0)
+        ax2 = fig.add_subplot(132, projection='3d')
+        ax2.scatter(x, y, z, color='red', lw=1)
+        ax2.view_init(45, 180)
+        ax3 = fig.add_subplot(133, projection='3d')
+        ax3.scatter(x, y, z, color='red', lw=1)
+        ax3.view_init(-90, 90)
+        plt.show()
+
+    def get_keypoints(frames):
+        MAX_CORNERS = 800
+        QUALITY = 0.01
+        MIN_DISTANCE = 8
+
+        LK_PARAMS = dict(
+            winSize=(21,21),
+            maxLevel=3,
+            criteria=(cv2.TERM_CRITERIA_EPS |
+                      cv2.TERM_CRITERIA_COUNT,
+                      30, 0.01)
+        )
+
+        ## define a mask to eliminate background junk
+        mask = np.zeros_like(frames[0])
+        mask[10:490, 10:500] = 255
+
+        p0 = cv2.goodFeaturesToTrack(
+            frames[0],
+            mask=mask,
+            maxCorners=MAX_CORNERS,
+            qualityLevel=QUALITY,
+            minDistance=MIN_DISTANCE
+        )
+
+        tracks = [ [pt.ravel()] for pt in p0 ]
+
+        prev_pts = p0
+        for i in range(1, len(frames)):
+
+            prev_img = frames[i-1]
+            curr_img = frames[i]
+
+            next_pts, status, _ = cv2.calcOpticalFlowPyrLK(
+                prev_img,
+                curr_img,
+                prev_pts,
+                None,
+                **LK_PARAMS
+            )
+
+            good_new = next_pts[status==1]
+            _ = prev_pts[status==1]
+
+            new_tracks = []
+
+            idx = 0
+            for t, s in zip(tracks, status):
+
+                if s == 1:
+                    t.append(good_new[idx])
+                    new_tracks.append(t)
+                    idx += 1
+
+            tracks = new_tracks
+
+            prev_pts = good_new.reshape(-1,1,2)
+
+        tracks = [t for t in tracks if len(t) == len(frames)]
+
+        F = len(frames)
+
+        return tracks, F
+
+    def metric_upgrade(F,M):
+
+      def _symmetric_vec(a, b):
+       return np.array([
+           a[0]*b[0],
+           a[0]*b[1] + a[1]*b[0],
+           a[0]*b[2] + a[2]*b[0],
+           a[1]*b[1],
+           a[1]*b[2] + a[2]*b[1],
+           a[2]*b[2]
+       ])
+
+      def _positiveDef(M):
+        """
+        method to compute nearest positive definite matrix
+        """
+        M = (M + M.T) * 0.5
+        k = 0
+        I = np.eye(M.shape[0])
+        while True:
+            try:
+                _ = np.linalg.cholesky(M)
+                break
+            except np.linalg.LinAlgError:
+                k += 1
+                _, v = np.linalg.eig(M)
+                min_eig = v.min()
+                M += (-min_eig * k * k + np.spacing(min_eig)) * I
+        return M
+
+      A = []
+      b = []
+
+      for i in range(F):
+          ai = M[2*i]
+          bi = M[2*i+1]
+
+          # ai^T L ai = 1
+          A.append(_symmetric_vec(ai, ai))
+          b.append(1)
+
+          # bi^T L bi = 1
+          A.append(_symmetric_vec(bi, bi))
+          b.append(1)
+
+          # ai^T L bi = 0
+          A.append(_symmetric_vec(ai, bi))
+          b.append(0)
+
+      A = np.array(A)
+      b = np.array(b)
+
+      x, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+
+      L = np.array([
+          [x[0], x[1], x[2]],
+          [x[1], x[3], x[4]],
+          [x[2], x[4], x[5]]
+      ])
+
+      L = _positiveDef(L)
+
+      C = np.linalg.cholesky(L)
+      return C
+
+    def load_images(paths):
+        rgb_frames = [np.array(Image.open(p).convert("RGB")) for p in paths]
+        frames = []
+        for path in paths:
+            img = cv2.imread(path)
+            if img is None:
+                raise RuntimeError(f"Failed to load {path}")
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            frames.append(gray)
+        return rgb_frames, frames
+
+    def plot_tracks(tracked,rgbs,F):
+        P = len(tracked)
+
+        tracked = np.array(tracked)
+
+        tracked = np.transpose(tracked, (1,0,2))
+
+        _, ax = plt.subplots(
+            1,
+            min(3, F),
+            figsize=(15,5)
+        )
+
+        if F == 1:
+            ax = [ax]
+
+        show_idx = [0, F//2, F-1]
+
+        for k, idx in enumerate(show_idx):
+
+            ax[k].imshow(rgbs[idx])
+
+            x = tracked[idx,:,0]
+            y = tracked[idx,:,1]
+
+            ax[k].scatter(
+                x,
+                y,
+                s=8,
+                c='cyan'
+            )
+
+            ax[k].set_title(
+                f'Frame {idx} ({P} tracked)'
+            )
+
+            ax[k].axis('off')
+
+        plt.tight_layout()
+        plt.show()
+
+    if __name__ == "__main__":
+        main()
     return
 
 

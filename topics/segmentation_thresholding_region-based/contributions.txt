@@ -1,0 +1,10 @@
+Contributions:
+
+Saif: 
+ - Wrote up, coded, found figures, and presented Section 1, 2, 5 (Segmentation by Thresholding and Paper)
+
+Zeiler:
+ - Wrote up, coded, found figures, and presented Section 2, 3, 4 (Segmentation by Thresholding)
+
+Trent and Ari:
+ - Wrote up, coded, found figures, and presented Section 6, 7, 8 (Segmentation by Region-Based and Paper)

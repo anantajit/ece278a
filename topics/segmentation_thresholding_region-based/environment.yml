@@ -1,0 +1,15 @@
+name: segmentation-278a
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.11
+  - numpy>=1.24
+  - matplotlib>=3.7
+  - scikit-image>=0.21
+  - scipy>=1.10
+  - ipython>=8.0
+  - jupyterlab>=4.0
+  - ipykernel
+  - opencv>=4.8
+  - pytorch>=2.0

@@ -25,6 +25,24 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ## Structure from Motion (SfM)
+
+    Yanxiu Jin
+
+    Michael Smith
+
+    Jared Arzate
+
+    Anantajit Subrahmanya
+
+    Cameron Cummins
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## What is the Structure from Motion (SfM) problem?
 
     - Recover 3D structure and camera motion from multiple 2D images.
@@ -92,6 +110,18 @@ def _(Image, frame_paths, mo, n_frames, next_frame):
             mo.image(Image.open(current).convert("RGB"), width="50%", rounded=True),
         ]
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Affine SfM
+
+    **First**:
+
+    Feature tracking & Optical Flow
+    """)
     return
 
 

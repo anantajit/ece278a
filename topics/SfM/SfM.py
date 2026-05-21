@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.6"
-app = marimo.App(width="medium")
+app = marimo.App(width="medium", layout_file="layouts/SfM.slides.json")
 
 
 @app.cell(hide_code=True)
@@ -92,20 +92,6 @@ def _(Image, frame_paths, mo, n_frames, next_frame):
             mo.image(Image.open(current).convert("RGB"), width="50%", rounded=True),
         ]
     )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Doing Affine SFM: Feature tracking
-
-    - Detect salient points and follow the same points across frames.
-        - SIFT for extracting keypoints
-        - Optical Flow (Lucas-Kanade method) for tracking
-    - Keep only trajectories visible in many frames for stability.
-    - Reject obvious outliers/drift before building the matrix.
-    """)
     return
 
 
@@ -259,7 +245,21 @@ def _(Image, cv2, frame_paths, mo, np):
 
 
 @app.cell(hide_code=True)
-def _(Image, cv2, frame_paths, np):
+def _(mo):
+    mo.md(r"""
+    ## Feature tracking
+
+    - Detect salient points and follow the same points across frames.
+        - SIFT for extracting keypoints
+        - Optical Flow (Lucas-Kanade method) for tracking
+    - Keep only trajectories visible in many frames for stability.
+    - Reject obvious outliers/drift before building the matrix.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(Image, Line2D, cv2, frame_paths, np, plt):
     selected_indices = [i for i in (7, 8, 9) if i < len(frame_paths)]
     if len(selected_indices) < 2:
         selected_indices = list(range(min(3, len(frame_paths))))
@@ -313,11 +313,7 @@ def _(Image, cv2, frame_paths, np):
             tracked_points.append(p_next[ok])
 
         tracked = [p.reshape(-1, 2) for p in tracked_points]
-    return kps, pts, rgbs, selected, tracked
 
-
-@app.cell(hide_code=True)
-def _(Line2D, kps, plt, pts, rgbs, selected, tracked):
     if len(selected) == 0:
         _fig, _ax = plt.subplots(figsize=(6, 4))
         _ax.text(

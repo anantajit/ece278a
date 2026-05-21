@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.6"
-app = marimo.App(width="medium", layout_file="layouts/SfM.slides.json")
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -61,7 +61,7 @@ def _(mo):
         else None
     )
     next_frame
-    return frame_paths, n_frames, next_frame
+    return Path, frame_paths, n_frames, next_frame
 
 
 @app.cell(hide_code=True)
@@ -235,7 +235,7 @@ def _(kps, pts, rgbs, selected, tracked):
         _ax[_i].axis("off")
     _ax[-1].legend(handles=legend, loc="lower right", framealpha=0.9)
     _fig
-    return
+    return (plt,)
 
 
 @app.cell(hide_code=True)
@@ -338,12 +338,7 @@ def _(mo):
 
 
 @app.cell
-def _():
-    import cv2
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from pathlib import Path
-    from PIL import Image as _Image
+def _(Image, Path, cv2, np, plt):
     import plotly.graph_objects as plt_g
     from scipy.linalg import sqrtm
 
@@ -574,7 +569,7 @@ def _():
       return C
 
     def load_images(paths):
-        rgb_frames = [np.array(_Image.open(p).convert("RGB")) for p in paths]
+        rgb_frames = [np.array(Image.open(p).convert("RGB")) for p in paths]
         frames = []
         for path in paths:
             img = cv2.imread(path)
@@ -627,7 +622,7 @@ def _():
 
     if __name__ == "__main__":
         main()
-    return cv2, np
+    return
 
 
 @app.cell(hide_code=True)

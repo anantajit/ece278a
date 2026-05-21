@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.6"
-app = marimo.App(width="medium", layout_file="layouts/SfM.slides.json")
+app = marimo.App(width="medium")
 
 
 @app.cell
@@ -82,9 +82,7 @@ def _(frame_paths, mo, n_frames, next_frame):
     mo.vstack(
         [
             mo.md(f"Frame **{idx + 1}/{n_frames}** — `{current.name}`"),
-            mo.image(
-                Image.open(current).convert("RGB"), width="50%", rounded=True
-            ),
+            mo.image(Image.open(current).convert("RGB"), width="50%", rounded=True),
         ]
     )
     return (Image,)
@@ -133,13 +131,9 @@ def _(frame_paths):
         # get tracked SIFT keypoints from the last frame
         p_prev = tracked[-1]
         # find optical flow to next frame and use it to track our prev keypoints
-        p_next, s, _ = cv2.calcOpticalFlowPyrLK(
-            grays[_i - 1], grays[_i], p_prev, None
-        )
+        p_next, s, _ = cv2.calcOpticalFlowPyrLK(grays[_i - 1], grays[_i], p_prev, None)
         # find optical flow from next frame and use it to track our curr keypoints
-        p_back, sb, _ = cv2.calcOpticalFlowPyrLK(
-            grays[_i], grays[_i - 1], p_next, None
-        )
+        p_back, sb, _ = cv2.calcOpticalFlowPyrLK(grays[_i], grays[_i - 1], p_next, None)
         # only keep the keypoints which are within 1 pixel of the tracks in both directions
         fb = np.linalg.norm((p_back - p_prev).reshape(-1, 2), axis=1)
         ok = s.reshape(-1).astype(bool) & sb.reshape(-1).astype(bool) & (fb < 1.0)
@@ -414,7 +408,9 @@ def _(Image, colmap_image_paths, plt):
         else:
             _colmap_axes_flat = list(_colmap_axes_dataset.ravel())
 
-        for _colmap_ax_i, _colmap_path_i in zip(_colmap_axes_flat, colmap_image_paths[:_colmap_n_preview]):
+        for _colmap_ax_i, _colmap_path_i in zip(
+            _colmap_axes_flat, colmap_image_paths[:_colmap_n_preview]
+        ):
             _colmap_img_i = Image.open(_colmap_path_i).convert("RGB")
             _colmap_ax_i.imshow(_colmap_img_i)
             _colmap_ax_i.set_title(_colmap_path_i.name, fontsize=9)
@@ -614,7 +610,7 @@ def _(
             colmap_kp2,
             _sorted_matches,
             None,
-            matchColor=(0, 255, 120),        # bright green lines
+            matchColor=(0, 255, 120),  # bright green lines
             singlePointColor=(80, 80, 80),
             flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
         )
@@ -623,10 +619,13 @@ def _(
         _h, _w = colmap_img1_rgb.shape[:2]
         for _m in _sorted_matches:
             _p1 = tuple(map(int, colmap_kp1[_m.queryIdx].pt))
-            _p2 = (int(colmap_kp2[_m.trainIdx].pt[0]) + _w, int(colmap_kp2[_m.trainIdx].pt[1]))
-            cv2.line(_colmap_match_vis, _p1, _p2, (0, 230, 255), 4)      # cyan, thickness=2
-            cv2.circle(_colmap_match_vis, _p1, 5, (255, 80, 0), -1)       # orange dot left
-            cv2.circle(_colmap_match_vis, _p2, 5, (255, 80, 0), -1)       # orange dot right
+            _p2 = (
+                int(colmap_kp2[_m.trainIdx].pt[0]) + _w,
+                int(colmap_kp2[_m.trainIdx].pt[1]),
+            )
+            cv2.line(_colmap_match_vis, _p1, _p2, (0, 230, 255), 4)  # cyan, thickness=2
+            cv2.circle(_colmap_match_vis, _p1, 5, (255, 80, 0), -1)  # orange dot left
+            cv2.circle(_colmap_match_vis, _p2, 5, (255, 80, 0), -1)  # orange dot right
 
         colmap_fig_match, _colmap_ax_match = plt.subplots(figsize=(24, 10))
         _colmap_ax_match.imshow(_colmap_match_vis)
@@ -684,12 +683,8 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(colmap_kp1, colmap_kp2, colmap_matches, cv2, np):
     if len(colmap_matches) >= 8:
-        colmap_pts1 = np.float32(
-            [colmap_kp1[_m.queryIdx].pt for _m in colmap_matches]
-        )
-        colmap_pts2 = np.float32(
-            [colmap_kp2[_m.trainIdx].pt for _m in colmap_matches]
-        )
+        colmap_pts1 = np.float32([colmap_kp1[_m.queryIdx].pt for _m in colmap_matches])
+        colmap_pts2 = np.float32([colmap_kp2[_m.trainIdx].pt for _m in colmap_matches])
 
         colmap_F, colmap_inlier_mask = cv2.findFundamentalMat(
             colmap_pts1,
@@ -734,7 +729,9 @@ def _(
         import numpy as _np_match
 
         _n_show = min(40, len(colmap_inlier_matches))
-        _sorted_inlier_matches = sorted(colmap_inlier_matches, key=lambda m: m.distance)[:_n_show]
+        _sorted_inlier_matches = sorted(
+            colmap_inlier_matches, key=lambda m: m.distance
+        )[:_n_show]
 
         _colmap_verified_vis = cv2.drawMatches(
             colmap_img1_rgb,
@@ -743,7 +740,7 @@ def _(
             colmap_kp2,
             _sorted_inlier_matches,
             None,
-            matchColor=(0, 230, 255),        # cyan lines
+            matchColor=(0, 230, 255),  # cyan lines
             singlePointColor=(80, 80, 80),
             flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
         )
@@ -752,7 +749,10 @@ def _(
         _h, _w = colmap_img1_rgb.shape[:2]
         for _m in _sorted_inlier_matches:
             _p1 = tuple(map(int, colmap_kp1[_m.queryIdx].pt))
-            _p2 = (int(colmap_kp2[_m.trainIdx].pt[0]) + _w, int(colmap_kp2[_m.trainIdx].pt[1]))
+            _p2 = (
+                int(colmap_kp2[_m.trainIdx].pt[0]) + _w,
+                int(colmap_kp2[_m.trainIdx].pt[1]),
+            )
             cv2.line(_colmap_verified_vis, _p1, _p2, (0, 230, 255), 2)
 
         colmap_fig_verify, _colmap_ax_verify = plt.subplots(figsize=(24, 10))
@@ -1038,27 +1038,67 @@ def _(mo):
 
     This is the closest part of the notebook to real COLMAP.
 
-    Press the button to run it. It may take a little time depending on the image count and machine.
+    Set the image folder and max image count, then press the button to run it.
+
+    By default, the folder is:
+
+    ```text
+    data/sacre_coeur
+    ```
+
+    It may take a little time depending on the image count and machine.
     """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
+    colmap_dataset_path_input = mo.ui.text(
+        value="data/sacre_coeur",
+        label="Image folder",
+        placeholder="Path to images",
+    )
+    colmap_max_images_input = mo.ui.number(
+        value=30,
+        start=2,
+        step=1,
+        label="Max images",
+    )
     colmap_run_pycolmap_button = mo.ui.button(
         value=0,
         on_click=lambda value: value + 1,
         label="Run actual PyCOLMAP sparse reconstruction",
         kind="success",
     )
-    colmap_run_pycolmap_button
-    return (colmap_run_pycolmap_button,)
+
+    mo.vstack(
+        [
+            mo.hstack([colmap_dataset_path_input, colmap_max_images_input]),
+            colmap_run_pycolmap_button,
+        ]
+    )
+    return (
+        colmap_dataset_path_input,
+        colmap_max_images_input,
+        colmap_run_pycolmap_button,
+    )
 
 
 @app.cell(hide_code=True)
-def _(colmap_image_paths):
+def _(colmap_dataset_path_input, colmap_max_images_input):
     from pathlib import Path as _ColmapPath
     import shutil as _colmap_shutil
+
+    colmap_source_dir = _ColmapPath(colmap_dataset_path_input.value).expanduser()
+    colmap_source_image_paths = []
+
+    if colmap_source_dir.exists():
+        for _pattern in ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.ppm"):
+            colmap_source_image_paths += sorted(colmap_source_dir.glob(_pattern))
+    else:
+        print("Input image folder does not exist:", colmap_source_dir)
+
+    colmap_max_images = int(colmap_max_images_input.value)
 
     colmap_pycolmap_workspace = _ColmapPath("pycolmap_sacre_coeur_workspace")
     colmap_pycolmap_image_dir = colmap_pycolmap_workspace / "images"
@@ -1072,20 +1112,25 @@ def _(colmap_image_paths):
     colmap_pycolmap_image_dir.mkdir(exist_ok=True)
     colmap_pycolmap_sparse_dir.mkdir(exist_ok=True)
 
-    # Use a manageable subset for a live demo. Sacré-Cœur images are more realistic
-    # than the Dino frames, but a huge set can take longer during presentation.
-    colmap_pycolmap_images_used = colmap_image_paths[:30]
+    # Use a manageable subset for a live demo.
+    colmap_pycolmap_images_used = colmap_source_image_paths[:colmap_max_images]
 
     for _colmap_src in colmap_pycolmap_images_used:
         _colmap_dst = colmap_pycolmap_image_dir / _colmap_src.name
         _colmap_shutil.copy2(_colmap_src, _colmap_dst)
 
     print("PyCOLMAP workspace:", colmap_pycolmap_workspace)
+    print("Source image directory:", colmap_source_dir)
+    print("Source images found:", len(colmap_source_image_paths))
     print("PyCOLMAP image directory:", colmap_pycolmap_image_dir)
-    print("Images copied for reconstruction:", len(list(colmap_pycolmap_image_dir.glob('*'))))
+    print(
+        "Images copied for reconstruction:",
+        len(list(colmap_pycolmap_image_dir.glob("*"))),
+    )
     return (
         colmap_pycolmap_database_path,
         colmap_pycolmap_image_dir,
+        colmap_pycolmap_images_used,
         colmap_pycolmap_sparse_dir,
     )
 
@@ -1095,6 +1140,7 @@ def _(
     colmap_pycolmap_available,
     colmap_pycolmap_database_path,
     colmap_pycolmap_image_dir,
+    colmap_pycolmap_images_used,
     colmap_pycolmap_sparse_dir,
     colmap_run_pycolmap_button,
     np,
@@ -1108,6 +1154,9 @@ def _(
 
     if colmap_run_pycolmap_button.value == 0:
         print("PyCOLMAP reconstruction not run yet. Press the button above to run it.")
+    elif len(colmap_pycolmap_images_used) < 2:
+        colmap_pycolmap_status = "not_enough_images"
+        print("Need at least 2 images in the selected folder.")
     elif not colmap_pycolmap_available:
         colmap_pycolmap_status = "pycolmap_not_installed"
         print("PyCOLMAP is not installed. Install with: pip install pycolmap")
@@ -1126,13 +1175,13 @@ def _(
 
             _colmap_feature_options = pycolmap_module.FeatureExtractionOptions()
             _colmap_feature_options.max_image_size = 1200
-            _colmap_feature_options.num_threads = 2
-            _colmap_feature_options.use_gpu = False
+            _colmap_feature_options.num_threads = 8
+            _colmap_feature_options.use_gpu = True
 
             _colmap_feature_options.sift.max_num_features = 4096
             _colmap_feature_options.sift.peak_threshold = 0.006
             _colmap_feature_options.sift.edge_threshold = 10.0
-            _colmap_feature_options.use_gpu = False
+            _colmap_feature_options.use_gpu = True
 
             pycolmap_module.extract_features(
                 colmap_pycolmap_database_path,
@@ -1156,7 +1205,9 @@ def _(
                 colmap_pycolmap_reconstruction = _colmap_maps[_colmap_first_key]
 
                 colmap_pycolmap_num_images = len(colmap_pycolmap_reconstruction.images)
-                colmap_pycolmap_num_points3D = len(colmap_pycolmap_reconstruction.points3D)
+                colmap_pycolmap_num_points3D = len(
+                    colmap_pycolmap_reconstruction.points3D
+                )
 
                 _colmap_xyz_list = []
                 for _colmap_point in colmap_pycolmap_reconstruction.points3D.values():
@@ -1170,7 +1221,9 @@ def _(
                 colmap_pycolmap_status = "no_reconstruction"
 
         except Exception as _colmap_pycolmap_exc:
-            colmap_pycolmap_status = f"error: {type(_colmap_pycolmap_exc).__name__}: {_colmap_pycolmap_exc}"
+            colmap_pycolmap_status = (
+                f"error: {type(_colmap_pycolmap_exc).__name__}: {_colmap_pycolmap_exc}"
+            )
 
     print("PyCOLMAP status:", colmap_pycolmap_status)
     print("Registered images:", colmap_pycolmap_num_images)
@@ -1266,7 +1319,9 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                     _colmap_cam_from_world = _colmap_cam_from_world()
 
                 _colmap_world_from_cam = _colmap_cam_from_world.inverse()
-                _colmap_center_xyz = np.asarray(_colmap_world_from_cam.translation, dtype=float)
+                _colmap_center_xyz = np.asarray(
+                    _colmap_world_from_cam.translation, dtype=float
+                )
             except Exception:
                 # Older pycolmap versions expose a direct projection_center method.
                 try:
@@ -1329,6 +1384,7 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
             height=1000,
             scene=dict(
                 aspectmode="data",
+                dragmode="orbit",
                 xaxis_title="X",
                 yaxis_title="Y",
                 zaxis_title="Z",

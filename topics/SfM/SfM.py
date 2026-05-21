@@ -73,7 +73,9 @@ def _(frame_paths, mo, n_frames, next_frame):
     mo.vstack(
         [
             mo.md(f"Frame **{idx + 1}/{n_frames}** — `{current.name}`"),
-            mo.image(Image.open(current).convert("RGB"), width="50%", rounded=True),
+            mo.image(
+                Image.open(current).convert("RGB"), width="50%", rounded=True
+            ),
         ]
     )
     return (Image,)
@@ -142,7 +144,9 @@ def _(Image, cv2, frame_paths, mo, np):
                 [
                     mo.md("**Optical flow**"),
                     mo.image(Image.fromarray(flow_vis), rounded=True),
-                    mo.md("_Legend: green arrows show motion direction and size._"),
+                    mo.md(
+                        "_Legend: green arrows show motion direction and size._"
+                    ),
                 ]
             ),
         ]
@@ -196,7 +200,7 @@ def _(Image, cv2, frame_paths, np):
         tracked = [p[ok] for p in tracked]
         tracked.append(p_next[ok])
     tracked = [p.reshape(-1, 2) for p in tracked]
-    return cv2, kps, np, pts, rgbs, selected, tracked
+    return kps, pts, rgbs, selected, tracked
 
 
 @app.cell(hide_code=True)
@@ -235,7 +239,7 @@ def _(kps, pts, rgbs, selected, tracked):
         _ax[_i].axis("off")
     _ax[-1].legend(handles=legend, loc="lower right", framealpha=0.9)
     _fig
-    return
+    return (plt,)
 
 
 @app.cell(hide_code=True)
@@ -462,7 +466,9 @@ def _():
 
         colmap_pycolmap_available = True
         colmap_pycolmap_error = None
-        colmap_pycolmap_version = getattr(pycolmap_module, "__version__", "unknown")
+        colmap_pycolmap_version = getattr(
+            pycolmap_module, "__version__", "unknown"
+        )
     except Exception as _pycolmap_exc:
         pycolmap_module = None
         colmap_pycolmap_available = False
@@ -560,7 +566,9 @@ def _(Image, colmap_image_paths, plt):
         for _colmap_ax_i in _colmap_axes_flat[_colmap_n_preview:]:
             _colmap_ax_i.axis("off")
 
-        colmap_fig_dataset.suptitle("Sacré-Cœur images used for the COLMAP section")
+        colmap_fig_dataset.suptitle(
+            "Sacré-Cœur images used for the COLMAP section"
+        )
         colmap_fig_dataset.tight_layout()
     else:
         colmap_fig_dataset, _colmap_ax_dataset = plt.subplots(figsize=(7, 4))
@@ -663,7 +671,9 @@ def _(colmap_img1_gray, colmap_img1_rgb, cv2, plt):
 
     print("Detector:", colmap_detector_name)
     print("Number of keypoints in image 1:", len(colmap_kp1))
-    print("Descriptor shape:", None if colmap_desc1 is None else colmap_desc1.shape)
+    print(
+        "Descriptor shape:", None if colmap_desc1 is None else colmap_desc1.shape
+    )
 
     colmap_fig_feature
     return colmap_desc1, colmap_detector_name, colmap_kp1
@@ -742,7 +752,9 @@ def _(
 
         # Assign a unique color per match ranked by descriptor distance
         _n_show = min(40, len(colmap_matches))
-        _sorted_matches = sorted(colmap_matches, key=lambda m: m.distance)[:_n_show]
+        _sorted_matches = sorted(colmap_matches, key=lambda m: m.distance)[
+            :_n_show
+        ]
 
         _colmap_match_vis = cv2.drawMatches(
             colmap_img1_rgb,
@@ -764,9 +776,15 @@ def _(
                 int(colmap_kp2[_m.trainIdx].pt[0]) + _w,
                 int(colmap_kp2[_m.trainIdx].pt[1]),
             )
-            cv2.line(_colmap_match_vis, _p1, _p2, (0, 230, 255), 4)  # cyan, thickness=2
-            cv2.circle(_colmap_match_vis, _p1, 5, (255, 80, 0), -1)  # orange dot left
-            cv2.circle(_colmap_match_vis, _p2, 5, (255, 80, 0), -1)  # orange dot right
+            cv2.line(
+                _colmap_match_vis, _p1, _p2, (0, 230, 255), 4
+            )  # cyan, thickness=2
+            cv2.circle(
+                _colmap_match_vis, _p1, 5, (255, 80, 0), -1
+            )  # orange dot left
+            cv2.circle(
+                _colmap_match_vis, _p2, 5, (255, 80, 0), -1
+            )  # orange dot right
 
         colmap_fig_match, _colmap_ax_match = plt.subplots(figsize=(24, 10))
         _colmap_ax_match.imshow(_colmap_match_vis)
@@ -824,8 +842,12 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(colmap_kp1, colmap_kp2, colmap_matches, cv2, np):
     if len(colmap_matches) >= 8:
-        colmap_pts1 = np.float32([colmap_kp1[_m.queryIdx].pt for _m in colmap_matches])
-        colmap_pts2 = np.float32([colmap_kp2[_m.trainIdx].pt for _m in colmap_matches])
+        colmap_pts1 = np.float32(
+            [colmap_kp1[_m.queryIdx].pt for _m in colmap_matches]
+        )
+        colmap_pts2 = np.float32(
+            [colmap_kp2[_m.trainIdx].pt for _m in colmap_matches]
+        )
 
         colmap_F, colmap_inlier_mask = cv2.findFundamentalMat(
             colmap_pts1,
@@ -838,7 +860,9 @@ def _(colmap_kp1, colmap_kp2, colmap_matches, cv2, np):
         if colmap_inlier_mask is not None:
             colmap_inlier_mask = colmap_inlier_mask.ravel().astype(bool)
             colmap_inlier_matches = [
-                _m for _m, _keep in zip(colmap_matches, colmap_inlier_mask) if _keep
+                _m
+                for _m, _keep in zip(colmap_matches, colmap_inlier_mask)
+                if _keep
             ]
         else:
             colmap_inlier_matches = []
@@ -905,7 +929,9 @@ def _(
         _colmap_ax_verify.axis("off")
     else:
         colmap_fig_verify, _colmap_ax_verify = plt.subplots(figsize=(24, 10))
-        _colmap_ax_verify.text(0.5, 0.5, "No images loaded", ha="center", va="center")
+        _colmap_ax_verify.text(
+            0.5, 0.5, "No images loaded", ha="center", va="center"
+        )
         _colmap_ax_verify.axis("off")
 
     colmap_fig_verify
@@ -979,11 +1005,13 @@ def _(
         )
 
         if colmap_E is not None:
-            _colmap_pose_ok, colmap_R, colmap_t, colmap_pose_mask = cv2.recoverPose(
-                colmap_E,
-                colmap_pts1_in,
-                colmap_pts2_in,
-                colmap_K,
+            _colmap_pose_ok, colmap_R, colmap_t, colmap_pose_mask = (
+                cv2.recoverPose(
+                    colmap_E,
+                    colmap_pts1_in,
+                    colmap_pts2_in,
+                    colmap_K,
+                )
             )
 
             _colmap_P1 = colmap_K @ np.hstack([np.eye(3), np.zeros((3, 1))])
@@ -1205,24 +1233,20 @@ def _(mo):
         step=1,
         label="Max images",
     )
-    colmap_run_pycolmap_button = mo.ui.button(
-        value=0,
-        on_click=lambda value: value + 1,
-        label="Run actual PyCOLMAP sparse reconstruction",
-        kind="success",
-    )
+    # colmap_run_pycolmap_button = mo.ui.button(
+    #     value=0,
+    #     on_click=lambda value: value + 1,
+    #     label="Run actual PyCOLMAP sparse reconstruction",
+    #     kind="success",
+    # )
 
     mo.vstack(
         [
             mo.hstack([colmap_dataset_path_input, colmap_max_images_input]),
-            colmap_run_pycolmap_button,
+            # colmap_run_pycolmap_button,
         ]
     )
-    return (
-        colmap_dataset_path_input,
-        colmap_max_images_input,
-        colmap_run_pycolmap_button,
-    )
+    return colmap_dataset_path_input, colmap_max_images_input
 
 
 @app.cell(hide_code=True)
@@ -1283,7 +1307,6 @@ def _(
     colmap_pycolmap_image_dir,
     colmap_pycolmap_images_used,
     colmap_pycolmap_sparse_dir,
-    colmap_run_pycolmap_button,
     np,
     pycolmap_module,
 ):
@@ -1293,9 +1316,7 @@ def _(
     colmap_pycolmap_num_images = 0
     colmap_pycolmap_num_points3D = 0
 
-    if colmap_run_pycolmap_button.value == 0:
-        print("PyCOLMAP reconstruction not run yet. Press the button above to run it.")
-    elif len(colmap_pycolmap_images_used) < 2:
+    if len(colmap_pycolmap_images_used) < 2:
         colmap_pycolmap_status = "not_enough_images"
         print("Need at least 2 images in the selected folder.")
     elif not colmap_pycolmap_available:
@@ -1345,13 +1366,17 @@ def _(
                 _colmap_first_key = sorted(_colmap_keys)[0]
                 colmap_pycolmap_reconstruction = _colmap_maps[_colmap_first_key]
 
-                colmap_pycolmap_num_images = len(colmap_pycolmap_reconstruction.images)
+                colmap_pycolmap_num_images = len(
+                    colmap_pycolmap_reconstruction.images
+                )
                 colmap_pycolmap_num_points3D = len(
                     colmap_pycolmap_reconstruction.points3D
                 )
 
                 _colmap_xyz_list = []
-                for _colmap_point in colmap_pycolmap_reconstruction.points3D.values():
+                for (
+                    _colmap_point
+                ) in colmap_pycolmap_reconstruction.points3D.values():
                     _colmap_xyz_list.append(_colmap_point.xyz)
 
                 if _colmap_xyz_list:
@@ -1362,9 +1387,7 @@ def _(
                 colmap_pycolmap_status = "no_reconstruction"
 
         except Exception as _colmap_pycolmap_exc:
-            colmap_pycolmap_status = (
-                f"error: {type(_colmap_pycolmap_exc).__name__}: {_colmap_pycolmap_exc}"
-            )
+            colmap_pycolmap_status = f"error: {type(_colmap_pycolmap_exc).__name__}: {_colmap_pycolmap_exc}"
 
     print("PyCOLMAP status:", colmap_pycolmap_status)
     print("Registered images:", colmap_pycolmap_num_images)
@@ -1398,7 +1421,10 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                 Import error: `{_colmap_plotly_error}`
             """
         )
-    elif colmap_pycolmap_status != "success" or colmap_pycolmap_reconstruction is None:
+    elif (
+        colmap_pycolmap_status != "success"
+        or colmap_pycolmap_reconstruction is None
+    ):
         colmap_fig_pycolmap = mo.md(
             f"""
             !!! warning "PyCOLMAP reconstruction unavailable"
@@ -1436,7 +1462,9 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
 
             # Remove extreme outliers for a cleaner presentation view.
             _colmap_center = np.median(_colmap_points_xyz, axis=0)
-            _colmap_dist = np.linalg.norm(_colmap_points_xyz - _colmap_center, axis=1)
+            _colmap_dist = np.linalg.norm(
+                _colmap_points_xyz - _colmap_center, axis=1
+            )
             _colmap_keep = _colmap_dist < np.percentile(_colmap_dist, 98)
             _colmap_points_xyz = _colmap_points_xyz[_colmap_keep]
             _colmap_colors = _colmap_colors[_colmap_keep]
@@ -1455,7 +1483,9 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                 if not _colmap_has_pose:
                     continue
 
-                _colmap_cam_from_world = getattr(_colmap_image, "cam_from_world", None)
+                _colmap_cam_from_world = getattr(
+                    _colmap_image, "cam_from_world", None
+                )
                 if callable(_colmap_cam_from_world):
                     _colmap_cam_from_world = _colmap_cam_from_world()
 
@@ -1474,7 +1504,9 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
 
             if np.isfinite(_colmap_center_xyz).all():
                 _colmap_camera_centers.append(_colmap_center_xyz)
-                _colmap_camera_names.append(getattr(_colmap_image, "name", "camera"))
+                _colmap_camera_names.append(
+                    getattr(_colmap_image, "name", "camera")
+                )
 
         if _colmap_camera_centers:
             _colmap_camera_centers = np.vstack(_colmap_camera_centers)
@@ -1529,9 +1561,15 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                 xaxis_title="X",
                 yaxis_title="Y",
                 zaxis_title="Z",
-                xaxis=dict(showbackground=True, backgroundcolor="rgb(245,245,245)"),
-                yaxis=dict(showbackground=True, backgroundcolor="rgb(245,245,245)"),
-                zaxis=dict(showbackground=True, backgroundcolor="rgb(245,245,245)"),
+                xaxis=dict(
+                    showbackground=True, backgroundcolor="rgb(245,245,245)"
+                ),
+                yaxis=dict(
+                    showbackground=True, backgroundcolor="rgb(245,245,245)"
+                ),
+                zaxis=dict(
+                    showbackground=True, backgroundcolor="rgb(245,245,245)"
+                ),
             ),
             legend=dict(x=0.02, y=0.98),
             margin=dict(l=0, r=0, t=50, b=0),

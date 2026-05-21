@@ -420,7 +420,8 @@ def _(Image, Path, cv2, np, plt):
         fig.update_layout(
             title='Affine SfM Reconstruction',
             scene=dict(
-                aspectmode='data'
+                aspectmode='data',
+                dragmode='orbit'
             )
         )
 

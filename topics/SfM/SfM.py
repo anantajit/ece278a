@@ -415,10 +415,10 @@ def _(mo):
 def _(Image, Path, data_dir, importlib, np, sys, torch):
     _device = torch.device("cuda")
 
+    # import hacks to bring in VGGT into a notebook
     _local_vggt_root = str((Path.cwd() / "vggt").resolve())
     if _local_vggt_root not in sys.path:
         sys.path.insert(0, _local_vggt_root)
-
     _VGGT = importlib.import_module("vggt.models.vggt").VGGT
     _pose_encoding_to_extri_intri = importlib.import_module(
         "vggt.utils.pose_enc"
@@ -427,6 +427,7 @@ def _(Image, Path, data_dir, importlib, np, sys, torch):
         "vggt.utils.geometry"
     ).unproject_depth_map_to_point_map
 
+    # extract image paths
     _image_paths = sorted(Path(data_dir.value).glob("*.ppm"))
     assert _image_paths, f"No .ppm images found in {data_dir.value}"
     _take_idx = np.linspace(
@@ -434,11 +435,13 @@ def _(Image, Path, data_dir, importlib, np, sys, torch):
     )
     _sample_paths = [_image_paths[i] for i in _take_idx]
 
+    # extract image frames
     _raw_frames = [
         np.array(Image.open(p).convert("RGB"), dtype=np.uint8) for p in _sample_paths
     ]
     _h = min(img.shape[0] for img in _raw_frames)
     _w = min(img.shape[1] for img in _raw_frames)
+    # crop down to a patch size of 14x14
     _h = (_h // 14) * 14
     _w = (_w // 14) * 14
     _rgb_frames = [
@@ -453,10 +456,13 @@ def _(Image, Path, data_dir, importlib, np, sys, torch):
         / 255.0
     )
 
+    # load model onto GPU
     _model = _VGGT.from_pretrained("facebook/VGGT-1B").eval().to(_device)
     with torch.inference_mode():
+        # get prediction vectors -- technically, after this, we are done
         _pred = _model(_images)
 
+    # post processing -- extract points from the model predictions
     _extr, _intr = _pose_encoding_to_extri_intri(_pred["pose_enc"], _images.shape[-2:])
     _points3d = _unproject_depth_map_to_point_map(_pred["depth"][0], _extr[0], _intr[0])
 
@@ -489,7 +495,12 @@ def _(colors, go, point_density, points3d):
     )
     _fig_cloud.update_layout(
         title="VGGT Point Cloud Visualization",
-        scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z"},
+        scene={
+            "xaxis_title": "X",
+            "yaxis_title": "Y",
+            "zaxis_title": "Z",
+            "dragmode": "orbit",
+        },
         margin={"l": 0, "r": 0, "t": 40, "b": 0},
         height=760,
         uirevision="keep",

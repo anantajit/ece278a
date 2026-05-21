@@ -87,7 +87,7 @@ def _(frame_paths, mo, n_frames, next_frame):
             ),
         ]
     )
-    return
+    return (Image,)
 
 
 @app.cell(hide_code=True)
@@ -187,7 +187,7 @@ def _(kps, pts, rgbs, selected, tracked):
     ax[-1].legend(handles=legend, loc="lower right", framealpha=0.9)
     fig.tight_layout()
     fig
-    return
+    return (plt,)
 
 
 @app.cell(hide_code=True)
@@ -273,35 +273,27 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # COLMAP: Practical Structure from Motion
+    ## COLMAP: Practical Structure from Motion
 
-    COLMAP turns raw images into a sparse 3D reconstruction.
+    COLMAP turns a set of unordered images into a **sparse 3D reconstruction** by solving for camera geometry and scene structure simultaneously.
 
-    The practical pipeline is:
+    The full pipeline is:
 
-    \[
-    \text{images}
-    \rightarrow
-    \text{feature extraction}
-    \rightarrow
-    \text{feature matching}
-    \rightarrow
-    \text{geometric verification}
-    \rightarrow
-    \text{triangulation}
-    \rightarrow
-    \text{bundle adjustment}
-    \]
+    $$
+    \underbrace{\mathcal{I}_1, \mathcal{I}_2, \ldots, \mathcal{I}_n}_{\text{images}}
+    \xrightarrow{\text{extract}}
+    \underbrace{\{(k_i, d_i)\}}_{\text{features}}
+    \xrightarrow{\text{match}}
+    \underbrace{\mathcal{C}_{ij}}_{\text{candidates}}
+    \xrightarrow{\text{verify}}
+    \underbrace{\mathcal{M}_{ij}}_{\text{inliers}}
+    \xrightarrow{\text{triangulate}}
+    \underbrace{\mathbf{X}_j \in \mathbb{R}^3}_{\text{3D points}}
+    \xrightarrow{\text{refine}}
+    \underbrace{\{\hat{P}_i, \hat{\mathbf{X}}_j\}}_{\text{reconstruction}}
+    $$
 
-    We break the section into five concepts:
-
-    1. Feature Extraction
-    2. Feature Matching
-    3. Geometric Verification
-    4. Triangulation
-    5. Bundle Adjustment
-
-    The OpenCV plots show the ideas visually. The PyCOLMAP cells show how the real COLMAP pipeline is called from Python.
+    Each arrow is a distinct algorithmic step. We cover all five below, with both visual demos (OpenCV) and the real pipeline (PyCOLMAP).
     """)
     return
 
@@ -309,29 +301,21 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Actual COLMAP access through PyCOLMAP
+    ## Calling COLMAP from Python
 
-    PyCOLMAP exposes many COLMAP capabilities directly in Python.
-
-    The actual reconstruction calls we use are:
+    PyCOLMAP exposes the full COLMAP pipeline as three function calls:
 
     ```python
-    pycolmap.extract_features(database_path, image_dir)
-    pycolmap.match_exhaustive(database_path)
-    maps = pycolmap.incremental_mapping(database_path, image_dir, output_dir)
+    pycolmap.extract_features(database_path, image_dir)   # step 1
+    pycolmap.match_exhaustive(database_path)               # step 2
+    maps = pycolmap.incremental_mapping(                   # steps 3–5
+        database_path, image_dir, output_dir
+    )
     ```
 
-    These correspond to COLMAP's real pipeline:
+    Internally, `incremental_mapping` registers images one at a time, triangulates new 3D points after each registration, and runs **bundle adjustment** to keep reprojection error low throughout.
 
-    \[
-    \text{feature extraction}
-    \rightarrow
-    \text{matching}
-    \rightarrow
-    \text{sparse reconstruction / mapping}
-    \]
-
-    The surrounding OpenCV cells are only visual explanations of the same concepts.
+    The surrounding cells use OpenCV to visualise each sub-step in isolation.
     """)
     return
 
@@ -382,11 +366,12 @@ def _(mo):
 def _():
     from pathlib import Path as _ColmapPath
 
-    _colmap_sacre_dir = _ColmapPath("data/sacre_coeur")
+    _colmap_sacre_dir = _ColmapPath("data/building_front")
 
     colmap_image_paths = sorted(_colmap_sacre_dir.glob("*.jpg"))
     colmap_image_paths += sorted(_colmap_sacre_dir.glob("*.jpeg"))
     colmap_image_paths += sorted(_colmap_sacre_dir.glob("*.png"))
+    colmap_image_paths += sorted(_colmap_sacre_dir.glob("*.JPG"))
 
     # Pick two images for the visual demos. Use nearby entries if possible,
     # otherwise fall back to the first two images.
@@ -473,29 +458,19 @@ def _(Image, colmap_img1_path, colmap_img2_path, cv2, np):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 1. Feature Extraction
+    ## Step 1 — Feature Extraction
 
-    COLMAP starts by detecting repeatable local features in each image.
+    Each image $\mathcal{I}_i$ is mapped to a set of *keypoints* with associated descriptors:
 
-    Conceptually:
+    $$
+    \mathcal{I}_i \;\longmapsto\; \bigl\{\,(k_{ij},\, \mathbf{d}_{ij})\bigr\}_{j=1}^{N_i}
+    $$
 
-    \[
-    I_i \rightarrow \{k_{i1}, k_{i2}, \ldots, k_{in}\}
-    \]
+    where $k_{ij} = (u, v, \sigma, \theta)$ encodes **location**, **scale** $\sigma$, and **orientation** $\theta$, and $\mathbf{d}_{ij} \in \mathbb{R}^{128}$ is the SIFT descriptor.
 
-    Each feature has:
+    **Why scale and orientation matter.** SIFT builds its descriptor in a *normalised patch* centred on $k_{ij}$: the patch is rotated by $-\theta$ and resized to a fixed scale. This makes $\mathbf{d}_{ij}$ invariant to in-plane rotation and scale change — the same physical point yields nearly identical descriptors across very different viewpoints.
 
-    - a keypoint location
-    - scale and orientation
-    - a descriptor vector
-
-    In real PyCOLMAP, this is done with:
-
-    ```python
-    pycolmap.extract_features(database_path, image_dir)
-    ```
-
-    The plot below shows the type of keypoints COLMAP-style reconstruction depends on.
+    Circles in the plot below encode $\sigma$ (radius) and $\theta$ (tick direction).
     """)
     return
 
@@ -519,10 +494,15 @@ def _(colmap_img1_gray, colmap_img1_rgb, cv2, plt):
             colmap_img1_rgb,
             colmap_kp1,
             None,
+            color=(0, 255, 80),
             flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS,
         )
+        # Overdraw a filled dot at each center so small keypoints are visible
+        for _kp in colmap_kp1:
+            _cx, _cy = int(_kp.pt[0]), int(_kp.pt[1])
+            cv2.circle(_colmap_keypoint_vis, (_cx, _cy), 8, (255, 80, 0), -1)
 
-        colmap_fig_feature, _colmap_ax_feature = plt.subplots(figsize=(7, 5))
+        colmap_fig_feature, _colmap_ax_feature = plt.subplots(figsize=(14, 10))
         _colmap_ax_feature.imshow(_colmap_keypoint_vis)
         _colmap_ax_feature.set_title(
             f"Step 1: Feature Extraction ({colmap_detector_name})"
@@ -533,7 +513,7 @@ def _(colmap_img1_gray, colmap_img1_rgb, cv2, plt):
         colmap_kp1 = []
         colmap_desc1 = None
 
-        colmap_fig_feature, _colmap_ax_feature = plt.subplots(figsize=(7, 5))
+        colmap_fig_feature, _colmap_ax_feature = plt.subplots(figsize=(14, 10))
         _colmap_ax_feature.text(
             0.5,
             0.5,
@@ -554,23 +534,19 @@ def _(colmap_img1_gray, colmap_img1_rgb, cv2, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2. Feature Matching
+    ## Step 2 — Feature Matching
 
-    After extracting features, COLMAP compares descriptors between image pairs.
+    Given descriptors from two images, candidate correspondences are found by nearest-neighbour search in descriptor space:
 
-    The goal is to find candidate correspondences:
+    $$
+    k_{1p} \;\leftrightarrow\; k_{2q}
+    \quad \text{if} \quad
+    \frac{\|\mathbf{d}_{1p} - \mathbf{d}_{2q}\|}{\|\mathbf{d}_{1p} - \mathbf{d}_{2q'}\|} < \tau
+    $$
 
-    \[
-    k_{1j} \leftrightarrow k_{2j}
-    \]
+    This is **Lowe's ratio test**: a match is accepted only when the nearest neighbour is significantly closer than the second-nearest neighbour $q'$. A threshold of $\tau = 0.75$ is standard — it rejects ambiguous matches where two descriptors are similarly plausible.
 
-    In real PyCOLMAP, exhaustive matching is called with:
-
-    ```python
-    pycolmap.match_exhaustive(database_path)
-    ```
-
-    These are only **candidate matches**. Some may be wrong, so COLMAP performs geometric verification next.
+    These are still *candidate* correspondences. Many will be outliers caused by repeated textures, reflections, or descriptor collisions. Geometric verification (next step) filters them.
     """)
     return
 
@@ -625,18 +601,33 @@ def _(
             colmap_matches = sorted(colmap_matches, key=lambda _m: _m.distance)
 
         colmap_matches = colmap_matches[:100]
-
+    
+        # Assign a unique color per match ranked by descriptor distance
+        _n_show = min(40, len(colmap_matches))
+        _sorted_matches = sorted(colmap_matches, key=lambda m: m.distance)[:_n_show]
+    
         _colmap_match_vis = cv2.drawMatches(
             colmap_img1_rgb,
             colmap_kp1,
             colmap_img2_rgb,
             colmap_kp2,
-            colmap_matches[:50],
+            _sorted_matches,
             None,
+            matchColor=(0, 255, 120),        # bright green lines
+            singlePointColor=(80, 80, 80),
             flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
         )
+    
+        # Overdraw thicker lines and endpoint dots manually for visibility
+        _h, _w = colmap_img1_rgb.shape[:2]
+        for _m in _sorted_matches:
+            _p1 = tuple(map(int, colmap_kp1[_m.queryIdx].pt))
+            _p2 = (int(colmap_kp2[_m.trainIdx].pt[0]) + _w, int(colmap_kp2[_m.trainIdx].pt[1]))
+            cv2.line(_colmap_match_vis, _p1, _p2, (0, 230, 255), 4)      # cyan, thickness=2
+            cv2.circle(_colmap_match_vis, _p1, 5, (255, 80, 0), -1)       # orange dot left
+            cv2.circle(_colmap_match_vis, _p2, 5, (255, 80, 0), -1)       # orange dot right
 
-        colmap_fig_match, _colmap_ax_match = plt.subplots(figsize=(12, 5))
+        colmap_fig_match, _colmap_ax_match = plt.subplots(figsize=(24, 10))
         _colmap_ax_match.imshow(_colmap_match_vis)
         _colmap_ax_match.set_title(
             f"Step 2: Candidate Feature Matches ({len(colmap_matches)} shown/kept)"
@@ -647,7 +638,7 @@ def _(
         colmap_desc2 = None
         colmap_matches = []
 
-        colmap_fig_match, _colmap_ax_match = plt.subplots(figsize=(12, 5))
+        colmap_fig_match, _colmap_ax_match = plt.subplots(figsize=(24, 10))
         _colmap_ax_match.text(
             0.5,
             0.5,
@@ -668,19 +659,23 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 3. Geometric Verification
+    ## Step 3 — Geometric Verification
 
-    Raw descriptor matches are not reliable enough.
+    Two cameras viewing the same 3D point must satisfy the **epipolar constraint**. For corresponding image points $\mathbf{x} \in \mathcal{I}_1$ and $\mathbf{x}' \in \mathcal{I}_2$:
 
-    COLMAP verifies matches using camera geometry. A common two-view constraint is the fundamental matrix:
+    $$
+    \mathbf{x}'^{\top} \mathbf{F} \mathbf{x} = 0
+    $$
 
-    \[
-    x'^T F x = 0
-    \]
+    $\mathbf{F} \in \mathbb{R}^{3 \times 3}$ is the **fundamental matrix** — rank 2, seven degrees of freedom. It encodes the complete relative geometry between the two cameras without knowing their intrinsics.
 
-    This means a matching point in the second image must lie on the epipolar line predicted by the first image point.
+    When intrinsics $\mathbf{K}$ are known, $\mathbf{F}$ factors into the **essential matrix** $\mathbf{E} = \mathbf{K}'^{\top}\mathbf{F}\mathbf{K}$, which has only five degrees of freedom and decomposes into a relative rotation and translation:
 
-    RANSAC is used to estimate the geometry while rejecting outliers.
+    $$
+    \mathbf{E} = [\mathbf{t}]_\times \mathbf{R}, \qquad \mathbf{E} = \mathbf{U}\,\text{diag}(1,1,0)\,\mathbf{V}^\top
+    $$
+
+    **RANSAC** estimates $\mathbf{F}$ (or $\mathbf{E}$) robustly: it repeatedly samples the minimum number of point pairs (7 for $\mathbf{F}$, 5 for $\mathbf{E}$), fits the matrix, and counts inliers whose epipolar distance falls below a pixel threshold $\epsilon$.
     """)
     return
 
@@ -735,24 +730,39 @@ def _(
     plt,
 ):
     if colmap_img1_rgb is not None and colmap_img2_rgb is not None:
+        import numpy as _np_match
+
+        _n_show = min(40, len(colmap_inlier_matches))
+        _sorted_inlier_matches = sorted(colmap_inlier_matches, key=lambda m: m.distance)[:_n_show]
+
         _colmap_verified_vis = cv2.drawMatches(
             colmap_img1_rgb,
             colmap_kp1,
             colmap_img2_rgb,
             colmap_kp2,
-            colmap_inlier_matches[:50],
+            _sorted_inlier_matches,
             None,
+            matchColor=(0, 230, 255),        # cyan lines
+            singlePointColor=(80, 80, 80),
             flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
         )
 
-        colmap_fig_verify, _colmap_ax_verify = plt.subplots(figsize=(12, 5))
+        # Overdraw thicker lines manually
+        _h, _w = colmap_img1_rgb.shape[:2]
+        for _m in _sorted_inlier_matches:
+            _p1 = tuple(map(int, colmap_kp1[_m.queryIdx].pt))
+            _p2 = (int(colmap_kp2[_m.trainIdx].pt[0]) + _w, int(colmap_kp2[_m.trainIdx].pt[1]))
+            cv2.line(_colmap_verified_vis, _p1, _p2, (0, 230, 255), 2)
+
+        colmap_fig_verify, _colmap_ax_verify = plt.subplots(figsize=(24, 10))
         _colmap_ax_verify.imshow(_colmap_verified_vis)
         _colmap_ax_verify.set_title(
-            f"Step 3: Geometrically Verified Matches ({len(colmap_inlier_matches)} inliers)"
+            f"Step 3: Geometrically Verified Matches ({len(colmap_inlier_matches)} inliers)",
+            fontsize=18,
         )
         _colmap_ax_verify.axis("off")
     else:
-        colmap_fig_verify, _colmap_ax_verify = plt.subplots(figsize=(12, 5))
+        colmap_fig_verify, _colmap_ax_verify = plt.subplots(figsize=(24, 10))
         _colmap_ax_verify.text(0.5, 0.5, "No images loaded", ha="center", va="center")
         _colmap_ax_verify.axis("off")
 
@@ -763,17 +773,22 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 4. Triangulation
+    ## Step 4 — Triangulation
 
-    Once COLMAP has verified matches and estimated camera poses, it can triangulate 3D points.
+    Given camera projection matrices $\mathbf{P}_1, \mathbf{P}_2$ and verified 2D correspondences $(\mathbf{x}_1, \mathbf{x}_2)$, we recover a 3D point $\mathbf{X}$ from the pair of ray equations:
 
-    Triangulation means:
+    $$
+    \mathbf{x}_1 \times (\mathbf{P}_1 \mathbf{X}) = \mathbf{0}, \qquad
+    \mathbf{x}_2 \times (\mathbf{P}_2 \mathbf{X}) = \mathbf{0}
+    $$
 
-    \[
-    \text{2D matches from multiple images} \rightarrow \text{3D point}
-    \]
+    Stacking rows from each cross-product gives an overdetermined linear system $\mathbf{A}\mathbf{X} = \mathbf{0}$ (the **DLT**). The solution minimising $\|\mathbf{A}\mathbf{X}\|$ subject to $\|\mathbf{X}\|=1$ is the last right singular vector of $\mathbf{A}$:
 
-    Each 2D observation defines a camera ray. The 3D point is estimated near the intersection of rays from multiple views.
+    $$
+    \hat{\mathbf{X}} = \arg\min_{\mathbf{X}} \|\mathbf{A}\mathbf{X}\|_2
+    $$
+
+    Two rays in $\mathbb{R}^3$ generically *skew* — they do not intersect exactly due to noise. The DLT solution minimises the algebraic residual; **optimal triangulation** minimises the reprojection error directly, which is a non-linear problem solved via the Sampson approximation.
     """)
     return
 
@@ -869,7 +884,7 @@ def _(
 
 @app.cell(hide_code=True)
 def _(colmap_points3D, np, plt):
-    colmap_fig_tri = plt.figure(figsize=(7, 5))
+    colmap_fig_tri = plt.figure(figsize=(24, 10))
     _colmap_ax_tri = colmap_fig_tri.add_subplot(111, projection="3d")
 
     if len(colmap_points3D) > 0:
@@ -905,29 +920,21 @@ def _(colmap_points3D, np, plt):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 5. Bundle Adjustment
+    ## Step 5 — Bundle Adjustment
 
-    Bundle adjustment is the refinement step.
+    All previous steps introduce drift. Bundle adjustment (BA) is the gold-standard joint refinement: it simultaneously optimises **all** camera poses, **all** intrinsic parameters, and **all** 3D point positions by minimising total reprojection error:
 
-    After triangulation, the estimated cameras and 3D points are not perfect.
+    $$
+    \min_{\{\mathbf{R}_i, \mathbf{t}_i, \mathbf{K}_i\},\, \{\mathbf{X}_j\}}
+    \sum_{(i,j) \in \mathcal{V}}
+    \rho\!\left(\left\|\mathbf{x}_{ij} - \pi(\mathbf{K}_i,\, \mathbf{R}_i,\, \mathbf{t}_i,\, \mathbf{X}_j)\right\|^2\right)
+    $$
 
-    Bundle adjustment jointly optimizes:
+    where $\pi$ is the perspective projection function, $\mathcal{V}$ is the set of visible point-image pairs, and $\rho$ is a **robust kernel** (e.g. Cauchy or Huber) that downweights residuals from outlier observations.
 
-    - camera poses
-    - camera intrinsics
-    - 3D point positions
+    The problem is solved with the **Levenberg–Marquardt** algorithm. The key computational insight is that the Jacobian has a *sparse block structure*: each 3D point only appears in the cameras that observe it. Exploiting this with the **Schur complement** reduces the $O((6m + 3n)^3)$ naive solve to roughly $O(m^3)$, where $m$ is the number of cameras and $n \gg m$ is the number of 3D points.
 
-    by minimizing reprojection error:
-
-    \[
-    \min_{\text{cameras},\ \text{points}}
-    \sum_{i,j}
-    \left\|
-    x_{ij} - \pi(P_i, X_j)
-    \right\|^2
-    \]
-
-    In COLMAP, this refinement happens inside the mapping / reconstruction pipeline.
+    COLMAP runs BA after every image registration, keeping the growing reconstruction numerically healthy.
     """)
     return
 
@@ -985,7 +992,7 @@ def _(
         colmap_reprojection_errors = np.array([])
         colmap_mean_reprojection_error = None
 
-    colmap_fig_ba, _colmap_ax_ba = plt.subplots(figsize=(7, 4))
+    colmap_fig_ba, _colmap_ax_ba = plt.subplots(figsize=(12, 6))
 
     if len(colmap_reprojection_errors) > 0:
         _colmap_ax_ba.hist(colmap_reprojection_errors, bins=30)
@@ -1117,8 +1124,12 @@ def _(
             print("Running pycolmap.extract_features(...) with more SIFT features")
 
             _colmap_feature_options = pycolmap_module.FeatureExtractionOptions()
-            _colmap_feature_options.sift.max_num_features = 3000
-            _colmap_feature_options.sift.peak_threshold = 0.003
+            _colmap_feature_options.max_image_size = 1200
+            _colmap_feature_options.num_threads = 2
+            _colmap_feature_options.use_gpu = False
+
+            _colmap_feature_options.sift.max_num_features = 4096
+            _colmap_feature_options.sift.peak_threshold = 0.006
             _colmap_feature_options.sift.edge_threshold = 10.0
             _colmap_feature_options.use_gpu = False
 
@@ -1284,7 +1295,7 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                     mode="markers",
                     name="Sparse 3D points",
                     marker=dict(
-                        size=1.5,
+                        size=2,
                         color=_colmap_colors,
                         opacity=0.85,
                     ),
@@ -1313,8 +1324,8 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                 f"({_colmap_points_xyz.shape[0]} points, "
                 f"{_colmap_camera_centers.shape[0]} cameras)"
             ),
-            width=850,
-            height=650,
+            width=1300,
+            height=1000,
             scene=dict(
                 aspectmode="data",
                 xaxis_title="X",

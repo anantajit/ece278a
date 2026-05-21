@@ -4,11 +4,22 @@ __generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
-    import marimo as mo
+    import importlib
+    from pathlib import Path
+    import sys
 
-    return (mo,)
+    import cv2
+    import marimo as mo
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import plotly.graph_objects as go
+    import torch
+    from matplotlib.lines import Line2D
+    from PIL import Image
+
+    return Image, Line2D, Path, cv2, go, importlib, mo, np, plt, sys, torch
 
 
 @app.cell(hide_code=True)
@@ -45,11 +56,9 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    from pathlib import Path
-
-    frame_paths = sorted(Path("data/dino").glob("viff.*.ppm"))
-    n_frames = len(frame_paths)
+def _(Path, mo):
+    dino_frame_paths = sorted(Path("data/dino").glob("viff.*.ppm"))
+    n_frames = len(dino_frame_paths)
     next_frame = (
         mo.ui.button(
             value=0,
@@ -61,21 +70,17 @@ def _(mo):
         else None
     )
     next_frame
-    return frame_paths, n_frames, next_frame
+    return dino_frame_paths, n_frames, next_frame
 
 
 @app.cell(hide_code=True)
-def _(frame_paths, mo, n_frames, next_frame):
-    from PIL import Image
-
+def _(Image, dino_frame_paths, mo, n_frames, next_frame):
     idx = next_frame.value
-    current = frame_paths[idx]
+    current = dino_frame_paths[idx]
     mo.vstack(
         [
             mo.md(f"Frame **{idx + 1}/{n_frames}** — `{current.name}`"),
-            mo.image(
-                Image.open(current).convert("RGB"), width="50%", rounded=True
-            ),
+            mo.image(Image.open(current).convert("RGB"), width="50%", rounded=True),
         ]
     )
     return (Image,)
@@ -179,10 +184,10 @@ def _(Image, cv2, frame_paths, np):
     kps = [sift.detectAndCompute(g, None)[0] for g in grays]
     pts = [np.array([kp.pt for kp in ks], dtype=np.float32) for ks in kps]
 
-    tracked = [pts[0].reshape(-1, 1, 2)]
-    for _i in range(1, len(grays)):
+    tracked_points = [sift_points[0].reshape(-1, 1, 2)]
+    for _i in range(1, len(_gray_frames)):
         # get tracked SIFT keypoints from the last frame
-        p_prev = tracked[-1]
+        _p_prev = tracked_points[-1]
         # find optical flow to next frame and use it to track our prev keypoints
         p_next, s, _ = cv2.calcOpticalFlowPyrLK(
             grays[_i - 1], grays[_i], p_prev, p_prev.copy()
@@ -194,13 +199,13 @@ def _(Image, cv2, frame_paths, np):
         p_next = p_next.astype(np.float32)
         p_back = p_back.astype(np.float32)
         # only keep the keypoints which are within 1 pixel of the tracks in both directions
-        fb = np.linalg.norm((p_back - p_prev).reshape(-1, 2), axis=1)
-        ok = s.reshape(-1).astype(bool) & sb.reshape(-1).astype(bool) & (fb < 1.0)
+        _fb = np.linalg.norm((_p_back - _p_prev).reshape(-1, 2), axis=1)
+        _ok = _s.reshape(-1).astype(bool) & _sb.reshape(-1).astype(bool) & (_fb < 1.0)
         # update our tracked points across all images
-        tracked = [p[ok] for p in tracked]
-        tracked.append(p_next[ok])
-    tracked = [p.reshape(-1, 2) for p in tracked]
-    return kps, pts, rgbs, selected, tracked
+        tracked_points = [p[_ok] for p in tracked_points]
+        tracked_points.append(_p_next[_ok])
+    tracked_points = [p.reshape(-1, 2) for p in tracked_points]
+    return rgb_frames, selected_paths, sift_kps, sift_points, tracked_points
 
 
 @app.cell(hide_code=True)
@@ -1603,18 +1608,216 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## VGGT [Anantajit]
-
-    **Outline**
-
-    1. What are the limitations for COLMAP (slow)
-
-    2. Overview of VGGT
-
-    3. Live Demo
-
-    4. Weaknesses
+    # VGGT: Visual Geometry Grounded Transformer
     """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Why **not** COLMAP (always, everywhere, all the time)?
+
+    - Optimization of Visual Geometry is a computationally intensive task
+
+      - Recent papers (DUSt3R, MASt3R, VGGSfM) has demonstrated learning-based approaches but do not automate the full pipeline
+
+    - COLMAP takes 15s while VGGT takes <1s
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## VGGT Architecture
+
+    **VGGT is a single feed-forward transformer**
+
+    Given some images in the scene, it predicts the camera matrices, depth maps, 3D point maps and dense point cloud.
+
+    ![VGGT Architecture Diagram](https://vgg-t.github.io/resources/architecture_v4.png)
+
+    ### Pipeline Steps
+
+    1. Patchification, tokenization for each image  (using DINOv2)
+
+    2. Append 1 camera token + 4 register tokens
+
+    3. Transformer blocks - alternating between frame-wise self attention and global self-attention
+
+    4. Output tokens - camera head contains intrinsics + extrinsics, DPT head (image tokens) contains depth maps, point maps, tracking features
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Vision Transformers (in a nutshell)
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Training and Losses
+
+    VGGT is trained end-to-end with dense geometric supervision from posed multi-view data which is explicitly labeled.
+
+    **Training data:** large-scale Internet and synthetic multi-view datasets with camera poses and depth/geometry supervision (sampled as image sets from the same scene).
+
+    A compact view of the objective is:
+    \[
+    \mathcal{L}_{\text{total}} =
+    \lambda_{\text{cam}}\,\mathcal{L}_{\text{cam}} +
+    \lambda_{\text{depth}}\,\mathcal{L}_{\text{depth}} +
+    \lambda_{\text{pts}}\,\mathcal{L}_{\text{3D}} +
+    \lambda_{\text{track}}\,\mathcal{L}_{\text{track}}.
+    \]
+
+    where:
+    \[
+    \begin{aligned}
+    \mathcal{L}_{\text{cam}}\; &=\; \alpha_R\,\left\lVert \log\!\left(R\hat{R}^{\top}\right) \right\rVert_1 + \alpha_t\,\left\lVert t-\hat{t} \right\rVert_1 + \alpha_K\,\left\lVert K-\hat{K} \right\rVert_1 \\
+    \mathcal{L}_{\text{depth}} &=\; \frac{1}{|\Omega|}\sum_{p\in\Omega} \rho\!\left(\log d(p)-\log \hat d(p)\right) \\
+    \mathcal{L}_{\text{3D}}\; &=\; \frac{1}{|\Omega|}\sum_{p\in\Omega} \rho\!\left(\|X(p)-\hat X(p)\|_2\right) \\
+    \mathcal{L}_{\text{track}} &=\; \frac{1}{|\mathcal{M}|}\sum_{(p,q)\in\mathcal{M}} \rho\!\left(\|\pi_j(\hat X_i(p)) - q\|_2\right)
+    \end{aligned}
+    \]
+    with \(\rho\) representing some robust penalty function (reducing the impact of outliers), \(\Omega\) valid pixels, and \(\mathcal{M}\) cross-view matches.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## VGGT demo: Dino reconstruction (CUDA)
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    data_dir = mo.ui.text(value="data/dino", label="Image folder")
+    point_density = mo.ui.slider(
+        start=1000,
+        stop=120000,
+        step=1000,
+        value=50000,
+        label="Point density",
+    )
+    mo.vstack(
+        [
+            mo.hstack([mo.md("**VGGT data path**"), data_dir], justify="start"),
+            mo.hstack([mo.md("**Displayed points**"), point_density], justify="start"),
+        ]
+    )
+    return data_dir, point_density
+
+
+@app.cell(hide_code=True)
+def _(Image, Path, data_dir, importlib, np, sys, torch):
+    _device = torch.device("cuda")
+
+    # import hacks to bring in VGGT into a notebook
+    _local_vggt_root = str((Path.cwd() / "vggt").resolve())
+    if _local_vggt_root not in sys.path:
+        sys.path.insert(0, _local_vggt_root)
+    _VGGT = importlib.import_module("vggt.models.vggt").VGGT
+    _pose_encoding_to_extri_intri = importlib.import_module(
+        "vggt.utils.pose_enc"
+    ).pose_encoding_to_extri_intri
+    _unproject_depth_map_to_point_map = importlib.import_module(
+        "vggt.utils.geometry"
+    ).unproject_depth_map_to_point_map
+
+    # extract image paths
+    _image_paths = sorted(Path(data_dir.value).glob("*.ppm"))
+    assert _image_paths, f"No .ppm images found in {data_dir.value}"
+    _take_idx = np.linspace(
+        0, len(_image_paths) - 1, min(12, len(_image_paths)), dtype=int
+    )
+    _sample_paths = [_image_paths[i] for i in _take_idx]
+
+    # extract image frames
+    _raw_frames = [
+        np.array(Image.open(p).convert("RGB"), dtype=np.uint8) for p in _sample_paths
+    ]
+    _h = min(img.shape[0] for img in _raw_frames)
+    _w = min(img.shape[1] for img in _raw_frames)
+    # crop down to a patch size of 14x14
+    _h = (_h // 14) * 14
+    _w = (_w // 14) * 14
+    _rgb_frames = [
+        img[
+            (img.shape[0] - _h) // 2 : (img.shape[0] + _h) // 2,
+            (img.shape[1] - _w) // 2 : (img.shape[1] + _w) // 2,
+        ]
+        for img in _raw_frames
+    ]
+    _images = (
+        torch.from_numpy(np.stack(_rgb_frames)).permute(0, 3, 1, 2).float().to(_device)
+        / 255.0
+    )
+
+    # load model onto GPU
+    _model = _VGGT.from_pretrained("facebook/VGGT-1B").eval().to(_device)
+    with torch.inference_mode():
+        # get prediction vectors -- technically, after this, we are done
+        _pred = _model(_images)
+
+    # post processing -- extract points from the model predictions
+    _extr, _intr = _pose_encoding_to_extri_intri(_pred["pose_enc"], _images.shape[-2:])
+    _points3d = _unproject_depth_map_to_point_map(_pred["depth"][0], _extr[0], _intr[0])
+
+    points3d = _points3d.reshape(-1, 3)
+    colors = _images.permute(0, 2, 3, 1).detach().cpu().numpy().reshape(-1, 3)
+    _valid = np.isfinite(points3d).all(axis=1)
+    points3d, colors = points3d[_valid], colors[_valid]
+    _stride = max(1, len(points3d) // 120000)
+    points3d = points3d[::_stride].astype(np.float32, copy=False)
+    colors = colors[::_stride].astype(np.float32, copy=False)
+    return colors, points3d
+
+
+@app.cell(hide_code=True)
+def _(colors, go, point_density, points3d):
+    _target = min(max(int(point_density.value), 1000), 120000)
+    _plot_stride = max(1, len(points3d) // _target)
+    _plot_points = points3d[::_plot_stride]
+    _plot_colors = colors[::_plot_stride]
+    _fig_cloud = go.Figure(
+        data=[
+            go.Scatter3d(
+                x=_plot_points[:, 0],
+                y=_plot_points[:, 1],
+                z=_plot_points[:, 2],
+                mode="markers",
+                marker={"size": 1.2, "color": _plot_colors, "opacity": 0.7},
+            )
+        ]
+    )
+    _fig_cloud.update_layout(
+        title="VGGT Point Cloud Visualization",
+        scene={
+            "xaxis_title": "X",
+            "yaxis_title": "Y",
+            "zaxis_title": "Z",
+            "dragmode": "orbit",
+        },
+        margin={"l": 0, "r": 0, "t": 40, "b": 0},
+        height=760,
+        uirevision="keep",
+    )
+    _fig_cloud
+    return
+
+
+@app.cell
+def _():
     return
 
 

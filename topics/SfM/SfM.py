@@ -4,13 +4,6 @@ __generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
-@app.cell
-def _():
-    import marimo as mo
-
-    return (mo,)
-
-
 @app.cell(hide_code=True)
 def _():
     import importlib
@@ -81,7 +74,7 @@ def _(Path, mo):
         else None
     )
     next_frame
-    return Path, frame_paths, n_frames, next_frame
+    return frame_paths, n_frames, next_frame
 
 
 @app.cell(hide_code=True)
@@ -287,7 +280,7 @@ def _(Line2D, kps, plt, pts, rgbs, selected, tracked):
         _ax[_i].axis("off")
     _ax[-1].legend(handles=legend, loc="lower right", framealpha=0.9)
     _fig
-    return (plt,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -389,7 +382,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(Image, Path, cv2, np, plt):
     import plotly.graph_objects as plt_g
     from scipy.linalg import sqrtm

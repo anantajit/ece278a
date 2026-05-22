@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.6"
-app = marimo.App(width="medium", layout_file="layouts/SfM.slides.json")
+app = marimo.App(layout_file="layouts/SfM.slides.json")
 
 
 @app.cell(hide_code=True)
@@ -25,7 +25,7 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Structure from Motion (SfM)
+    # Structure from Motion (SfM)
 
     Yanxiu Jin
 
@@ -107,7 +107,9 @@ def _(Image, frame_paths, mo, n_frames, next_frame):
     mo.vstack(
         [
             mo.md(f"Frame **{idx + 1}/{n_frames}** — `{current.name}`"),
-            mo.image(Image.open(current).convert("RGB"), width="50%", rounded=True),
+            mo.image(
+                Image.open(current).convert("RGB"), width="50%", rounded=True
+            ),
         ]
     )
     return
@@ -337,7 +339,11 @@ def _(Image, Line2D, cv2, frame_paths, np, plt):
             p_next = p_next.astype(np.float32)
             p_back = p_back.astype(np.float32)
             fb = np.linalg.norm((p_back - p_prev).reshape(-1, 2), axis=1)
-            ok = s.reshape(-1).astype(bool) & sb.reshape(-1).astype(bool) & (fb < 1.0)
+            ok = (
+                s.reshape(-1).astype(bool)
+                & sb.reshape(-1).astype(bool)
+                & (fb < 1.0)
+            )
 
             tracked_points = [p[ok] for p in tracked_points]
             tracked_points.append(p_next[ok])
@@ -496,9 +502,8 @@ def _(mo):
     mo.md(r"""
     ## Last step: Metric upgrade
 
-    - Factorization is ambiguous up to any invertible 3x3 transform.
-    - Solve for a transform that enforces orthonormality constraints on motion rows.
-    - Apply it to obtain Euclidean-consistent motion and structure.
+    - Factorization is not unique (any invertible affine transform works)
+    - Solve for a transform that enforces orthonormality constraints on motion rows (each row of camera matrix is orthogonal and equal magnitude)
     """)
     return
 
@@ -507,6 +512,7 @@ def _(mo):
 def _(Image, Path, cv2, np, plt):
     import plotly.graph_objects as plt_g
     from scipy.linalg import sqrtm
+
 
     def main():
         frame_paths = sorted(Path("./data/dino").glob("*.ppm"))
@@ -520,7 +526,7 @@ def _(Image, Path, cv2, np, plt):
 
         plot_tracks(tracked, rgb_frames, F)
 
-        M, S = affineSFM(W,F)
+        M, S = affineSFM(W, F)
 
         # remove outliers
         dist = np.linalg.norm(S, axis=0)
@@ -529,82 +535,80 @@ def _(Image, Path, cv2, np, plt):
 
         plot_shape(S)
 
+
     def construct_W(tracks, F):
         P = len(tracks)
-        W = np.zeros((2*F, P))
+        W = np.zeros((2 * F, P))
         for j, track in enumerate(tracks):
             for i, pt in enumerate(track):
                 x, y = pt
-                W[2*i, j] = x
-                W[2*i+1, j] = y
+                W[2 * i, j] = x
+                W[2 * i + 1, j] = y
 
         # centering
         for i in range(F):
-            W[2*i]   -= np.mean(W[2*i])
-            W[2*i+1] -= np.mean(W[2*i+1])
+            W[2 * i] -= np.mean(W[2 * i])
+            W[2 * i + 1] -= np.mean(W[2 * i + 1])
 
         return W
 
-    def affineSFM(W,F):
-      Ud, Sd, Vd = np.linalg.svd(W)
 
-      # keep up to rank 3
-      U3 = Ud[:,0:3]
-      S3 = np.diag(Sd[:3])
-      V3 = Vd.T[:, :3]
+    def affineSFM(W, F):
+        Ud, Sd, Vd = np.linalg.svd(W)
 
-      M = U3 @ sqrtm(S3)
-      S = sqrtm(S3) @ V3.T
+        # keep up to rank 3
+        U3 = Ud[:, 0:3]
+        S3 = np.diag(Sd[:3])
+        V3 = Vd.T[:, :3]
 
-      C = metric_upgrade(F,M)
+        M = U3 @ sqrtm(S3)
+        S = sqrtm(S3) @ V3.T
 
-      M = M @ C
-      S = np.linalg.inv(C) @ S
+        C = metric_upgrade(F, M)
 
-      return M, S
+        M = M @ C
+        S = np.linalg.inv(C) @ S
+
+        return M, S
+
 
     def plot_shape(S):
-        x = S[0,:]
-        y = S[1,:]
-        z = S[2,:]
+        x = S[0, :]
+        y = S[1, :]
+        z = S[2, :]
 
-        fig = plt_g.Figure(data=[
-            plt_g.Scatter3d(
-                x=x,
-                y=y,
-                z=z,
-                mode='markers',
-                marker=dict(
-                    size=4,
-                    color=z,
-                    colorscale='Turbo',
-                    opacity=0.9
+        fig = plt_g.Figure(
+            data=[
+                plt_g.Scatter3d(
+                    x=x,
+                    y=y,
+                    z=z,
+                    mode="markers",
+                    marker=dict(size=4, color=z, colorscale="Turbo", opacity=0.9),
                 )
-            )
-        ])
+            ]
+        )
 
         fig.update_layout(
-            title='Affine SfM Reconstruction',
-            scene=dict(
-                aspectmode='data',
-                dragmode='orbit'
-            )
+            title="Affine SfM Reconstruction",
+            scene=dict(aspectmode="data", dragmode="orbit"),
         )
 
         fig.show()
 
         fig = plt.figure(figsize=(18.5, 6))
-        fig.suptitle('Reconstructed image')
-        ax1 = fig.add_subplot(131, projection='3d')
-        ax1.scatter(x, y, z, color='red', lw=1)
+        fig.suptitle("Reconstructed image")
+        ax1 = fig.add_subplot(131, projection="3d")
+        ax1.scatter(x, y, z, color="red", lw=1)
         ax1.view_init(130, 0)
-        ax2 = fig.add_subplot(132, projection='3d')
-        ax2.scatter(x, y, z, color='red', lw=1)
+        ax2 = fig.add_subplot(132, projection="3d")
+        ax2.scatter(x, y, z, color="red", lw=1)
         ax2.view_init(45, 180)
-        ax3 = fig.add_subplot(133, projection='3d')
-        ax3.scatter(x, y, z, color='red', lw=1)
+        ax3 = fig.add_subplot(133, projection="3d")
+        ax3.scatter(x, y, z, color="red", lw=1)
         ax3.view_init(-90, 90)
         plt.show()
+
 
     def get_keypoints(frames):
         MAX_CORNERS = 800
@@ -612,11 +616,9 @@ def _(Image, Path, cv2, np, plt):
         MIN_DISTANCE = 8
 
         LK_PARAMS = dict(
-            winSize=(21,21),
+            winSize=(21, 21),
             maxLevel=3,
-            criteria=(cv2.TERM_CRITERIA_EPS |
-                      cv2.TERM_CRITERIA_COUNT,
-                      30, 0.01)
+            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01),
         )
 
         ## define a mask to eliminate background junk
@@ -628,33 +630,27 @@ def _(Image, Path, cv2, np, plt):
             mask=mask,
             maxCorners=MAX_CORNERS,
             qualityLevel=QUALITY,
-            minDistance=MIN_DISTANCE
+            minDistance=MIN_DISTANCE,
         )
 
-        tracks = [ [pt.ravel()] for pt in p0 ]
+        tracks = [[pt.ravel()] for pt in p0]
 
         prev_pts = p0
         for i in range(1, len(frames)):
-
-            prev_img = frames[i-1]
+            prev_img = frames[i - 1]
             curr_img = frames[i]
 
             next_pts, status, _ = cv2.calcOpticalFlowPyrLK(
-                prev_img,
-                curr_img,
-                prev_pts,
-                None,
-                **LK_PARAMS
+                prev_img, curr_img, prev_pts, None, **LK_PARAMS
             )
 
-            good_new = next_pts[status==1]
-            _ = prev_pts[status==1]
+            good_new = next_pts[status == 1]
+            _ = prev_pts[status == 1]
 
             new_tracks = []
 
             idx = 0
             for t, s in zip(tracks, status):
-
                 if s == 1:
                     t.append(good_new[idx])
                     new_tracks.append(t)
@@ -662,7 +658,7 @@ def _(Image, Path, cv2, np, plt):
 
             tracks = new_tracks
 
-            prev_pts = good_new.reshape(-1,1,2)
+            prev_pts = good_new.reshape(-1, 1, 2)
 
         tracks = [t for t in tracks if len(t) == len(frames)]
 
@@ -670,70 +666,70 @@ def _(Image, Path, cv2, np, plt):
 
         return tracks, F
 
-    def metric_upgrade(F,M):
 
-      def _symmetric_vec(a, b):
-       return np.array([
-           a[0]*b[0],
-           a[0]*b[1] + a[1]*b[0],
-           a[0]*b[2] + a[2]*b[0],
-           a[1]*b[1],
-           a[1]*b[2] + a[2]*b[1],
-           a[2]*b[2]
-       ])
+    def metric_upgrade(F, M):
 
-      def _positiveDef(M):
-        """
-        method to compute nearest positive definite matrix
-        """
-        M = (M + M.T) * 0.5
-        k = 0
-        I = np.eye(M.shape[0])
-        while True:
-            try:
-                _ = np.linalg.cholesky(M)
-                break
-            except np.linalg.LinAlgError:
-                k += 1
-                _, v = np.linalg.eig(M)
-                min_eig = v.min()
-                M += (-min_eig * k * k + np.spacing(min_eig)) * I
-        return M
+        def _symmetric_vec(a, b):
+            return np.array(
+                [
+                    a[0] * b[0],
+                    a[0] * b[1] + a[1] * b[0],
+                    a[0] * b[2] + a[2] * b[0],
+                    a[1] * b[1],
+                    a[1] * b[2] + a[2] * b[1],
+                    a[2] * b[2],
+                ]
+            )
 
-      A = []
-      b = []
+        def _positiveDef(M):
+            """
+            method to compute nearest positive definite matrix
+            """
+            M = (M + M.T) * 0.5
+            k = 0
+            I = np.eye(M.shape[0])
+            while True:
+                try:
+                    _ = np.linalg.cholesky(M)
+                    break
+                except np.linalg.LinAlgError:
+                    k += 1
+                    _, v = np.linalg.eig(M)
+                    min_eig = v.min()
+                    M += (-min_eig * k * k + np.spacing(min_eig)) * I
+            return M
 
-      for i in range(F):
-          ai = M[2*i]
-          bi = M[2*i+1]
+        A = []
+        b = []
 
-          # ai^T L ai = 1
-          A.append(_symmetric_vec(ai, ai))
-          b.append(1)
+        for i in range(F):
+            ai = M[2 * i]
+            bi = M[2 * i + 1]
 
-          # bi^T L bi = 1
-          A.append(_symmetric_vec(bi, bi))
-          b.append(1)
+            # ai^T L ai = 1
+            A.append(_symmetric_vec(ai, ai))
+            b.append(1)
 
-          # ai^T L bi = 0
-          A.append(_symmetric_vec(ai, bi))
-          b.append(0)
+            # bi^T L bi = 1
+            A.append(_symmetric_vec(bi, bi))
+            b.append(1)
 
-      A = np.array(A)
-      b = np.array(b)
+            # ai^T L bi = 0
+            A.append(_symmetric_vec(ai, bi))
+            b.append(0)
 
-      x, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+        A = np.array(A)
+        b = np.array(b)
 
-      L = np.array([
-          [x[0], x[1], x[2]],
-          [x[1], x[3], x[4]],
-          [x[2], x[4], x[5]]
-      ])
+        x, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
 
-      L = _positiveDef(L)
+        L = np.array([[x[0], x[1], x[2]], [x[1], x[3], x[4]], [x[2], x[4], x[5]]])
 
-      C = np.linalg.cholesky(L)
-      return C
+        L = _positiveDef(L)
+
+        C = np.linalg.cholesky(L)
+        return C
+
 
     def load_images(paths):
         rgb_frames = [np.array(Image.open(p).convert("RGB")) for p in paths]
@@ -746,46 +742,36 @@ def _(Image, Path, cv2, np, plt):
             frames.append(gray)
         return rgb_frames, frames
 
-    def plot_tracks(tracked,rgbs,F):
+
+    def plot_tracks(tracked, rgbs, F):
         P = len(tracked)
 
         tracked = np.array(tracked)
 
-        tracked = np.transpose(tracked, (1,0,2))
+        tracked = np.transpose(tracked, (1, 0, 2))
 
-        _, ax = plt.subplots(
-            1,
-            min(3, F),
-            figsize=(15,5)
-        )
+        _, ax = plt.subplots(1, min(3, F), figsize=(15, 5))
 
         if F == 1:
             ax = [ax]
 
-        show_idx = [0, F//2, F-1]
+        show_idx = [0, F // 2, F - 1]
 
         for k, idx in enumerate(show_idx):
-
             ax[k].imshow(rgbs[idx])
 
-            x = tracked[idx,:,0]
-            y = tracked[idx,:,1]
+            x = tracked[idx, :, 0]
+            y = tracked[idx, :, 1]
 
-            ax[k].scatter(
-                x,
-                y,
-                s=8,
-                c='cyan'
-            )
+            ax[k].scatter(x, y, s=8, c="cyan")
 
-            ax[k].set_title(
-                f'Frame {idx} ({P} tracked)'
-            )
+            ax[k].set_title(f"Frame {idx} ({P} tracked)")
 
-            ax[k].axis('off')
+            ax[k].axis("off")
 
         plt.tight_layout()
         plt.show()
+
 
     if __name__ == "__main__":
         main()
@@ -871,7 +857,9 @@ def _():
 
         colmap_pycolmap_available = True
         colmap_pycolmap_error = None
-        colmap_pycolmap_version = getattr(pycolmap_module, "__version__", "unknown")
+        colmap_pycolmap_version = getattr(
+            pycolmap_module, "__version__", "unknown"
+        )
     except Exception as _pycolmap_exc:
         pycolmap_module = None
         colmap_pycolmap_available = False
@@ -969,7 +957,9 @@ def _(Image, colmap_image_paths, plt):
         for _colmap_ax_i in _colmap_axes_flat[_colmap_n_preview:]:
             _colmap_ax_i.axis("off")
 
-        colmap_fig_dataset.suptitle("Sacré-Cœur images used for the COLMAP section")
+        colmap_fig_dataset.suptitle(
+            "Sacré-Cœur images used for the COLMAP section"
+        )
         colmap_fig_dataset.tight_layout()
     else:
         colmap_fig_dataset, _colmap_ax_dataset = plt.subplots(figsize=(7, 4))
@@ -1072,7 +1062,9 @@ def _(colmap_img1_gray, colmap_img1_rgb, cv2, plt):
 
     print("Detector:", colmap_detector_name)
     print("Number of keypoints in image 1:", len(colmap_kp1))
-    print("Descriptor shape:", None if colmap_desc1 is None else colmap_desc1.shape)
+    print(
+        "Descriptor shape:", None if colmap_desc1 is None else colmap_desc1.shape
+    )
 
     colmap_fig_feature
     return colmap_desc1, colmap_detector_name, colmap_kp1
@@ -1151,7 +1143,9 @@ def _(
 
         # Assign a unique color per match ranked by descriptor distance
         _n_show = min(40, len(colmap_matches))
-        _sorted_matches = sorted(colmap_matches, key=lambda m: m.distance)[:_n_show]
+        _sorted_matches = sorted(colmap_matches, key=lambda m: m.distance)[
+            :_n_show
+        ]
 
         _colmap_match_vis = cv2.drawMatches(
             colmap_img1_rgb,
@@ -1173,9 +1167,15 @@ def _(
                 int(colmap_kp2[_m.trainIdx].pt[0]) + _w,
                 int(colmap_kp2[_m.trainIdx].pt[1]),
             )
-            cv2.line(_colmap_match_vis, _p1, _p2, (0, 230, 255), 4)  # cyan, thickness=2
-            cv2.circle(_colmap_match_vis, _p1, 5, (255, 80, 0), -1)  # orange dot left
-            cv2.circle(_colmap_match_vis, _p2, 5, (255, 80, 0), -1)  # orange dot right
+            cv2.line(
+                _colmap_match_vis, _p1, _p2, (0, 230, 255), 4
+            )  # cyan, thickness=2
+            cv2.circle(
+                _colmap_match_vis, _p1, 5, (255, 80, 0), -1
+            )  # orange dot left
+            cv2.circle(
+                _colmap_match_vis, _p2, 5, (255, 80, 0), -1
+            )  # orange dot right
 
         colmap_fig_match, _colmap_ax_match = plt.subplots(figsize=(24, 10))
         _colmap_ax_match.imshow(_colmap_match_vis)
@@ -1233,8 +1233,12 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(colmap_kp1, colmap_kp2, colmap_matches, cv2, np):
     if len(colmap_matches) >= 8:
-        colmap_pts1 = np.float32([colmap_kp1[_m.queryIdx].pt for _m in colmap_matches])
-        colmap_pts2 = np.float32([colmap_kp2[_m.trainIdx].pt for _m in colmap_matches])
+        colmap_pts1 = np.float32(
+            [colmap_kp1[_m.queryIdx].pt for _m in colmap_matches]
+        )
+        colmap_pts2 = np.float32(
+            [colmap_kp2[_m.trainIdx].pt for _m in colmap_matches]
+        )
 
         colmap_F, colmap_inlier_mask = cv2.findFundamentalMat(
             colmap_pts1,
@@ -1247,7 +1251,9 @@ def _(colmap_kp1, colmap_kp2, colmap_matches, cv2, np):
         if colmap_inlier_mask is not None:
             colmap_inlier_mask = colmap_inlier_mask.ravel().astype(bool)
             colmap_inlier_matches = [
-                _m for _m, _keep in zip(colmap_matches, colmap_inlier_mask) if _keep
+                _m
+                for _m, _keep in zip(colmap_matches, colmap_inlier_mask)
+                if _keep
             ]
         else:
             colmap_inlier_matches = []
@@ -1314,7 +1320,9 @@ def _(
         _colmap_ax_verify.axis("off")
     else:
         colmap_fig_verify, _colmap_ax_verify = plt.subplots(figsize=(24, 10))
-        _colmap_ax_verify.text(0.5, 0.5, "No images loaded", ha="center", va="center")
+        _colmap_ax_verify.text(
+            0.5, 0.5, "No images loaded", ha="center", va="center"
+        )
         _colmap_ax_verify.axis("off")
 
     colmap_fig_verify
@@ -1388,11 +1396,13 @@ def _(
         )
 
         if colmap_E is not None:
-            _colmap_pose_ok, colmap_R, colmap_t, colmap_pose_mask = cv2.recoverPose(
-                colmap_E,
-                colmap_pts1_in,
-                colmap_pts2_in,
-                colmap_K,
+            _colmap_pose_ok, colmap_R, colmap_t, colmap_pose_mask = (
+                cv2.recoverPose(
+                    colmap_E,
+                    colmap_pts1_in,
+                    colmap_pts2_in,
+                    colmap_K,
+                )
             )
 
             _colmap_P1 = colmap_K @ np.hstack([np.eye(3), np.zeros((3, 1))])
@@ -1483,10 +1493,15 @@ def _(mo):
 
     where $\pi$ is the perspective projection function, $\mathcal{V}$ is the set of visible point-image pairs, and $\rho$ is a **robust kernel** (e.g. Cauchy or Huber) that downweights residuals from outlier observations.
 
-    The problem is solved with the **Levenberg–Marquardt** algorithm. The key computational insight is that the Jacobian has a *sparse block structure*: each 3D point only appears in the cameras that observe it. Exploiting this with the **Schur complement** reduces the $O((6m + 3n)^3)$ naive solve to roughly $O(m^3)$, where $m$ is the number of cameras and $n \gg m$ is the number of 3D points.
 
     COLMAP runs BA after every image registration, keeping the growing reconstruction numerically healthy.
     """)
+    return
+
+
+@app.cell
+def _():
+    # The problem is solved with the **Levenberg–Marquardt** algorithm. The key computational insight is that the Jacobian has a *sparse block structure*: each 3D point only appears in the cameras that observe it. Exploiting this with the **Schur complement** reduces the $O((6m + 3n)^3)$ naive solve to roughly $O(m^3)$, where $m$ is the number of cameras and $n \gg m$ is the number of 3D points.
     return
 
 
@@ -1747,13 +1762,17 @@ def _(
                 _colmap_first_key = sorted(_colmap_keys)[0]
                 colmap_pycolmap_reconstruction = _colmap_maps[_colmap_first_key]
 
-                colmap_pycolmap_num_images = len(colmap_pycolmap_reconstruction.images)
+                colmap_pycolmap_num_images = len(
+                    colmap_pycolmap_reconstruction.images
+                )
                 colmap_pycolmap_num_points3D = len(
                     colmap_pycolmap_reconstruction.points3D
                 )
 
                 _colmap_xyz_list = []
-                for _colmap_point in colmap_pycolmap_reconstruction.points3D.values():
+                for (
+                    _colmap_point
+                ) in colmap_pycolmap_reconstruction.points3D.values():
                     _colmap_xyz_list.append(_colmap_point.xyz)
 
                 if _colmap_xyz_list:
@@ -1764,9 +1783,7 @@ def _(
                 colmap_pycolmap_status = "no_reconstruction"
 
         except Exception as _colmap_pycolmap_exc:
-            colmap_pycolmap_status = (
-                f"error: {type(_colmap_pycolmap_exc).__name__}: {_colmap_pycolmap_exc}"
-            )
+            colmap_pycolmap_status = f"error: {type(_colmap_pycolmap_exc).__name__}: {_colmap_pycolmap_exc}"
 
     print("PyCOLMAP status:", colmap_pycolmap_status)
     print("Registered images:", colmap_pycolmap_num_images)
@@ -1800,7 +1817,10 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                 Import error: `{_colmap_plotly_error}`
             """
         )
-    elif colmap_pycolmap_status != "success" or colmap_pycolmap_reconstruction is None:
+    elif (
+        colmap_pycolmap_status != "success"
+        or colmap_pycolmap_reconstruction is None
+    ):
         colmap_fig_pycolmap = mo.md(
             f"""
             !!! warning "PyCOLMAP reconstruction unavailable"
@@ -1838,7 +1858,9 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
 
             # Remove extreme outliers for a cleaner presentation view.
             _colmap_center = np.median(_colmap_points_xyz, axis=0)
-            _colmap_dist = np.linalg.norm(_colmap_points_xyz - _colmap_center, axis=1)
+            _colmap_dist = np.linalg.norm(
+                _colmap_points_xyz - _colmap_center, axis=1
+            )
             _colmap_keep = _colmap_dist < np.percentile(_colmap_dist, 98)
             _colmap_points_xyz = _colmap_points_xyz[_colmap_keep]
             _colmap_colors = _colmap_colors[_colmap_keep]
@@ -1857,7 +1879,9 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                 if not _colmap_has_pose:
                     continue
 
-                _colmap_cam_from_world = getattr(_colmap_image, "cam_from_world", None)
+                _colmap_cam_from_world = getattr(
+                    _colmap_image, "cam_from_world", None
+                )
                 if callable(_colmap_cam_from_world):
                     _colmap_cam_from_world = _colmap_cam_from_world()
 
@@ -1876,7 +1900,9 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
 
             if np.isfinite(_colmap_center_xyz).all():
                 _colmap_camera_centers.append(_colmap_center_xyz)
-                _colmap_camera_names.append(getattr(_colmap_image, "name", "camera"))
+                _colmap_camera_names.append(
+                    getattr(_colmap_image, "name", "camera")
+                )
 
         if _colmap_camera_centers:
             _colmap_camera_centers = np.vstack(_colmap_camera_centers)
@@ -1931,9 +1957,15 @@ def _(colmap_pycolmap_reconstruction, colmap_pycolmap_status, mo, np):
                 xaxis_title="X",
                 yaxis_title="Y",
                 zaxis_title="Z",
-                xaxis=dict(showbackground=True, backgroundcolor="rgb(245,245,245)"),
-                yaxis=dict(showbackground=True, backgroundcolor="rgb(245,245,245)"),
-                zaxis=dict(showbackground=True, backgroundcolor="rgb(245,245,245)"),
+                xaxis=dict(
+                    showbackground=True, backgroundcolor="rgb(245,245,245)"
+                ),
+                yaxis=dict(
+                    showbackground=True, backgroundcolor="rgb(245,245,245)"
+                ),
+                zaxis=dict(
+                    showbackground=True, backgroundcolor="rgb(245,245,245)"
+                ),
             ),
             legend=dict(x=0.02, y=0.98),
             margin=dict(l=0, r=0, t=50, b=0),
@@ -2072,8 +2104,12 @@ def _(mo):
     mo.vstack(
         [
             mo.hstack([mo.md("**VGGT data path**"), data_dir], justify="start"),
-            mo.hstack([mo.md("**Input image limit**"), data_limit], justify="start"),
-            mo.hstack([mo.md("**Displayed points**"), point_density], justify="start"),
+            mo.hstack(
+                [mo.md("**Input image limit**"), data_limit], justify="start"
+            ),
+            mo.hstack(
+                [mo.md("**Displayed points**"), point_density], justify="start"
+            ),
         ]
     )
     return data_dir, data_limit, point_density
@@ -2122,7 +2158,8 @@ def _(Image, Path, data_dir, data_limit, importlib, np, sys, torch):
 
     # extract image frames
     _raw_frames = [
-        np.array(Image.open(p).convert("RGB"), dtype=np.uint8) for p in _sample_paths
+        np.array(Image.open(p).convert("RGB"), dtype=np.uint8)
+        for p in _sample_paths
     ]
     _h = min(img.shape[0] for img in _raw_frames)
     _w = min(img.shape[1] for img in _raw_frames)
@@ -2137,7 +2174,10 @@ def _(Image, Path, data_dir, data_limit, importlib, np, sys, torch):
         for img in _raw_frames
     ]
     _images = (
-        torch.from_numpy(np.stack(_rgb_frames)).permute(0, 3, 1, 2).float().to(_device)
+        torch.from_numpy(np.stack(_rgb_frames))
+        .permute(0, 3, 1, 2)
+        .float()
+        .to(_device)
         / 255.0
     )
 
@@ -2148,8 +2188,12 @@ def _(Image, Path, data_dir, data_limit, importlib, np, sys, torch):
         _pred = _model(_images)
 
     # post processing -- extract points from the model predictions
-    _extr, _intr = _pose_encoding_to_extri_intri(_pred["pose_enc"], _images.shape[-2:])
-    _points3d = _unproject_depth_map_to_point_map(_pred["depth"][0], _extr[0], _intr[0])
+    _extr, _intr = _pose_encoding_to_extri_intri(
+        _pred["pose_enc"], _images.shape[-2:]
+    )
+    _points3d = _unproject_depth_map_to_point_map(
+        _pred["depth"][0], _extr[0], _intr[0]
+    )
 
     points3d = _points3d.reshape(-1, 3)
     colors = _images.permute(0, 2, 3, 1).detach().cpu().numpy().reshape(-1, 3)
